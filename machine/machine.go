@@ -39,18 +39,47 @@ import (
 
 var (
 	cpuRegExp     = regexp.MustCompile(`^processor\s*:\s*([0-9]+)$`)
-	coreRegExp    = regexp.MustCompile(`^core id\s*:\s*([0-9]+)$`)
-	nodeRegExp    = regexp.MustCompile(`^physical id\s*:\s*([0-9]+)$`)
+	coreRegExp    = regexp.MustCompile(`(?m)^core id\s*:\s*([0-9]+)$`)
+	nodeRegExp    = regexp.MustCompile(`(?m)^physical id\s*:\s*([0-9]+)$`)
 	nodeBusRegExp = regexp.MustCompile(`^node([0-9]+)$`)
 	// Power systems have a different format so cater for both
 	cpuClockSpeedMHz     = regexp.MustCompile(`(?:cpu MHz|clock)\s*:\s*([0-9]+\.[0-9]+)(?:MHz)?`)
 	memoryCapacityRegexp = regexp.MustCompile(`MemTotal:\s*([0-9]+) kB`)
 	swapCapacityRegexp   = regexp.MustCompile(`SwapTotal:\s*([0-9]+) kB`)
+
+	cpuBusPath = "/sys/bus/cpu/devices/"
 )
 
 const maxFreqFile = "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq"
-const cpuBusPath = "/sys/bus/cpu/devices/"
 const nodePath = "/sys/devices/system/node"
+
+// GetPhysicalCores returns number of CPU cores reading /proc/cpuinfo file or if needed information from sysfs cpu path
+func GetPhysicalCores(procInfo []byte) int {
+	numCores := getUniqueMatchesCount(string(procInfo), coreRegExp)
+	if numCores == 0 {
+		// read number of cores from /sys/bus/cpu/devices/cpu*/topology/core_id to deal with processors
+		// fow which 'core id' is not available in /proc/cpuinfo
+		numCores = getUniqueCPUPropertyCount(cpuBusPath, "core_id")
+	}
+	if numCores == 0 {
+		klog.Errorf("Cannot read number of physical cores correctly, number of cores set to %d", numCores)
+	}
+	return numCores
+}
+
+// GetSockets returns number of CPU sockets reading /proc/cpuinfo file or if needed information from sysfs cpu path
+func GetSockets(procInfo []byte) int {
+	numSocket := getUniqueMatchesCount(string(procInfo), nodeRegExp)
+	if numSocket == 0 {
+		// read number of sockets from /sys/bus/cpu/devices/cpu*/topology/physical_package_id to deal with processors
+		// fow which 'physical id' is not available in /proc/cpuinfo
+		numSocket = getUniqueCPUPropertyCount(cpuBusPath, "physical_package_id")
+	}
+	if numSocket == 0 {
+		klog.Errorf("Cannot read number of sockets correctly, number of sockets set to %d", numSocket)
+	}
+	return numSocket
+}
 
 // GetClockSpeed returns the CPU clock speed, given a []byte formatted as the /proc/cpuinfo file.
 func GetClockSpeed(procInfo []byte) (uint64, error) {
@@ -154,6 +183,34 @@ func getCoreIdFromCpuBus(cpuBusPath string, threadId int) (int, error) {
 	}
 
 	return int(coreId), nil
+}
+
+/* Look for sysfs cpu path containing given CPU property, e.g. core_id or physical_package_id */
+/* and returns number of unique values of given property, exemplary usage: getting number of CPU physical cores */
+func getUniqueCPUPropertyCount(cpuBusPath string, propertyName string) int {
+	uniquePropertyCount := 0
+	pathPattern := cpuBusPath + "cpu*[0-9]"
+	sysCPUPaths, err := filepath.Glob(pathPattern)
+	if err != nil {
+		klog.Errorf("Cannot find files matching pattern (path-pattern: %s),  number of unique %s set to %d", pathPattern, propertyName, uniquePropertyCount)
+		return uniquePropertyCount
+	}
+	uniques := make(map[string]bool)
+	for _, sysCPUPath := range sysCPUPaths {
+		propertyPath := filepath.Join(sysCPUPath, "topology", propertyName)
+		propertyVal, err := ioutil.ReadFile(propertyPath)
+		propertyStr := string(propertyVal)
+		if err != nil {
+			klog.Errorf("Cannot open %s, number of unique %s  set to %d", propertyPath, propertyName, uniquePropertyCount)
+			return uniquePropertyCount
+		}
+
+		if !uniques[propertyStr] {
+			uniques[propertyStr] = true
+		}
+	}
+	uniquePropertyCount = len(uniques)
+	return uniquePropertyCount
 }
 
 /* Look for sysfs cpu path containing node id */
@@ -362,6 +419,18 @@ func extractValue(s string, r *regexp.Regexp) (bool, int, error) {
 		return true, int(val), nil
 	}
 	return false, -1, nil
+}
+
+/* getUniqueMatchesCount returns number of unique matches in given argument using provided regular expression */
+func getUniqueMatchesCount(s string, r *regexp.Regexp) int {
+	matches := r.FindAllString(s, -1)
+	uniques := make(map[string]bool)
+	for _, match := range matches {
+		if !uniques[match] {
+			uniques[match] = true
+		}
+	}
+	return len(uniques)
 }
 
 func findNode(nodes []info.Node, id int) (bool, int) {

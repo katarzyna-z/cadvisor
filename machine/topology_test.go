@@ -25,6 +25,88 @@ import (
 	"github.com/google/cadvisor/utils/sysfs/fakesysfs"
 )
 
+func TestPhysicalCores(t *testing.T) {
+	testfile := "./testdata/cpuinfo"
+	testcpuinfo, err := ioutil.ReadFile(testfile)
+	if err != nil {
+		t.Fatalf("unable to read input test file %s", testfile)
+	}
+
+	numPhysicalCores := GetPhysicalCores(testcpuinfo)
+	if numPhysicalCores != 6 {
+		t.Errorf("Expected 6 physical cores, found %d", numPhysicalCores)
+	}
+}
+
+func TestPhysicalCoresReadingFromCpuBus(t *testing.T) {
+	cpuBusPath = "./testdata/"
+	testfile := "./testdata/cpuinfo_arm" //cpuinfo without core id
+
+	testcpuinfo, err := ioutil.ReadFile(testfile)
+	if err != nil {
+		t.Fatalf("unable to read input test file %s", testfile)
+	}
+	numPhysicalCores := GetPhysicalCores(testcpuinfo)
+	if numPhysicalCores != 2 {
+		t.Errorf("Expected 2 physical cores, found %d", numPhysicalCores)
+	}
+}
+
+func TestPhysicalCoresFromWrongSysFs(t *testing.T) {
+	cpuBusPath = "./testdata/wrongsysfs"
+	testfile := "./testdata/cpuinfo_arm" //cpuinfo without core id
+
+	testcpuinfo, err := ioutil.ReadFile(testfile)
+	if err != nil {
+		t.Fatalf("unable to read input test file %s", testfile)
+	}
+	numPhysicalCores := GetPhysicalCores(testcpuinfo)
+	if numPhysicalCores != 0 {
+		t.Errorf("Expected 0 physical cores, found %d", numPhysicalCores)
+	}
+}
+
+func TestSockets(t *testing.T) {
+	testfile := "./testdata/cpuinfo"
+
+	testcpuinfo, err := ioutil.ReadFile(testfile)
+	if err != nil {
+		t.Fatalf("unable to read input test file %s", testfile)
+	}
+	numSockets := GetSockets(testcpuinfo)
+	if numSockets != 2 {
+		t.Errorf("Expected 2 sockets, found %d", numSockets)
+	}
+}
+
+func TestSocketsReadingFromCpuBus(t *testing.T) {
+	cpuBusPath = "./testdata/wrongsysfs"
+	testfile := "./testdata/cpuinfo_arm" //cpuinfo without physical id
+
+	testcpuinfo, err := ioutil.ReadFile(testfile)
+	if err != nil {
+		t.Fatalf("unable to read input test file %s", testfile)
+	}
+	numSockets := GetSockets(testcpuinfo)
+	if numSockets != 0 {
+		t.Errorf("Expected 0 sockets, found %d", numSockets)
+	}
+}
+
+func TestSocketsReadingFromWrongSysFs(t *testing.T) {
+	cpuBusPath = "./testdata/"
+	testfile := "./testdata/cpuinfo_arm" //cpuinfo without physical id
+
+	testcpuinfo, err := ioutil.ReadFile(testfile)
+	if err != nil {
+		t.Fatalf("unable to read input test file %s", testfile)
+	}
+	numSockets := GetSockets(testcpuinfo)
+	if numSockets != 1 {
+		t.Errorf("Expected 1 sockets, found %d", numSockets)
+	}
+}
+
 func TestTopology(t *testing.T) {
 	if runtime.GOARCH != "amd64" {
 		t.Skip("cpuinfo testdata is for amd64")
