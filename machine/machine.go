@@ -52,14 +52,17 @@ var (
 
 const maxFreqFile = "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq"
 const nodePath = "/sys/devices/system/node"
+const sysFsCPUCoreID = "core_id"
+const sysFsCPUPhysicalPackageID = "physical_package_id"
+const sysFsCPUTopology = "topology"
 
 // GetPhysicalCores returns number of CPU cores reading /proc/cpuinfo file or if needed information from sysfs cpu path
 func GetPhysicalCores(procInfo []byte) int {
 	numCores := getUniqueMatchesCount(string(procInfo), coreRegExp)
 	if numCores == 0 {
 		// read number of cores from /sys/bus/cpu/devices/cpu*/topology/core_id to deal with processors
-		// fow which 'core id' is not available in /proc/cpuinfo
-		numCores = getUniqueCPUPropertyCount(cpuBusPath, "core_id")
+		// for which 'core id' is not available in /proc/cpuinfo
+		numCores = getUniqueCPUPropertyCount(cpuBusPath, sysFsCPUCoreID)
 	}
 	if numCores == 0 {
 		klog.Errorf("Cannot read number of physical cores correctly, number of cores set to %d", numCores)
@@ -72,8 +75,8 @@ func GetSockets(procInfo []byte) int {
 	numSocket := getUniqueMatchesCount(string(procInfo), nodeRegExp)
 	if numSocket == 0 {
 		// read number of sockets from /sys/bus/cpu/devices/cpu*/topology/physical_package_id to deal with processors
-		// fow which 'physical id' is not available in /proc/cpuinfo
-		numSocket = getUniqueCPUPropertyCount(cpuBusPath, "physical_package_id")
+		// for which 'physical id' is not available in /proc/cpuinfo
+		numSocket = getUniqueCPUPropertyCount(cpuBusPath, sysFsCPUPhysicalPackageID)
 	}
 	if numSocket == 0 {
 		klog.Errorf("Cannot read number of sockets correctly, number of sockets set to %d", numSocket)
@@ -161,11 +164,11 @@ func parseCapacity(b []byte, r *regexp.Regexp) (uint64, error) {
 	return m * 1024, err
 }
 
-/* Look for sysfs cpu path containing core_id */
-/* Such as: sys/bus/cpu/devices/cpu0/topology/core_id */
+// Looks for sysfs cpu path containing core_id
+// Such as: sys/bus/cpu/devices/cpu0/topology/core_id
 func getCoreIdFromCpuBus(cpuBusPath string, threadId int) (int, error) {
 	path := filepath.Join(cpuBusPath, fmt.Sprintf("cpu%d/topology", threadId))
-	file := filepath.Join(path, "core_id")
+	file := filepath.Join(path, sysFsCPUCoreID)
 
 	num, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -185,36 +188,34 @@ func getCoreIdFromCpuBus(cpuBusPath string, threadId int) (int, error) {
 	return int(coreId), nil
 }
 
-/* Look for sysfs cpu path containing given CPU property, e.g. core_id or physical_package_id */
-/* and returns number of unique values of given property, exemplary usage: getting number of CPU physical cores */
+// Looks for sysfs cpu path containing given CPU property, e.g. core_id or physical_package_id
+// and returns number of unique values of given property, exemplary usage: getting number of CPU physical cores
 func getUniqueCPUPropertyCount(cpuBusPath string, propertyName string) int {
-	uniquePropertyCount := 0
 	pathPattern := cpuBusPath + "cpu*[0-9]"
 	sysCPUPaths, err := filepath.Glob(pathPattern)
 	if err != nil {
-		klog.Errorf("Cannot find files matching pattern (path-pattern: %s),  number of unique %s set to %d", pathPattern, propertyName, uniquePropertyCount)
-		return uniquePropertyCount
+		klog.Errorf("Cannot find files matching pattern (pathPattern: %s),  number of unique %s set to 0", pathPattern, propertyName)
+		return 0
 	}
 	uniques := make(map[string]bool)
 	for _, sysCPUPath := range sysCPUPaths {
-		propertyPath := filepath.Join(sysCPUPath, "topology", propertyName)
+		propertyPath := filepath.Join(sysCPUPath, sysFsCPUTopology, propertyName)
 		propertyVal, err := ioutil.ReadFile(propertyPath)
 		propertyStr := string(propertyVal)
 		if err != nil {
-			klog.Errorf("Cannot open %s, number of unique %s  set to %d", propertyPath, propertyName, uniquePropertyCount)
-			return uniquePropertyCount
+			klog.Errorf("Cannot open %s, number of unique %s  set to 0", propertyPath, propertyName)
+			return 0
 		}
 
 		if !uniques[propertyStr] {
 			uniques[propertyStr] = true
 		}
 	}
-	uniquePropertyCount = len(uniques)
-	return uniquePropertyCount
+	return len(uniques)
 }
 
-/* Look for sysfs cpu path containing node id */
-/* Such as: /sys/bus/cpu/devices/cpu0/node%d */
+// Looks for sysfs cpu path containing node id
+// Such as: /sys/bus/cpu/devices/cpu0/node%d
 func getNodeIdFromCpuBus(cpuBusPath string, threadId int) (int, error) {
 	path := filepath.Join(cpuBusPath, fmt.Sprintf("cpu%d", threadId))
 
