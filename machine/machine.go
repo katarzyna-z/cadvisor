@@ -201,15 +201,11 @@ func getUniqueCPUPropertyCount(cpuBusPath string, propertyName string) int {
 	for _, sysCPUPath := range sysCPUPaths {
 		propertyPath := filepath.Join(sysCPUPath, sysFsCPUTopology, propertyName)
 		propertyVal, err := ioutil.ReadFile(propertyPath)
-		propertyStr := string(propertyVal)
 		if err != nil {
 			klog.Errorf("Cannot open %s, number of unique %s  set to 0", propertyPath, propertyName)
 			return 0
 		}
-
-		if !uniques[propertyStr] {
-			uniques[propertyStr] = true
-		}
+		uniques[string(propertyVal)] = true
 	}
 	return len(uniques)
 }
@@ -427,9 +423,7 @@ func getUniqueMatchesCount(s string, r *regexp.Regexp) int {
 	matches := r.FindAllString(s, -1)
 	uniques := make(map[string]bool)
 	for _, match := range matches {
-		if !uniques[match] {
-			uniques[match] = true
-		}
+		uniques[match] = true
 	}
 	return len(uniques)
 }
