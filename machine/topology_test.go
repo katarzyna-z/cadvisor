@@ -23,88 +23,77 @@ import (
 	info "github.com/google/cadvisor/info/v1"
 	"github.com/google/cadvisor/utils/sysfs"
 	"github.com/google/cadvisor/utils/sysfs/fakesysfs"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPhysicalCores(t *testing.T) {
 	testfile := "./testdata/cpuinfo"
+
 	testcpuinfo, err := ioutil.ReadFile(testfile)
-	if err != nil {
-		t.Fatalf("unable to read input test file %s", testfile)
-	}
+	assert.Nil(t, err)
+	assert.NotNil(t, testcpuinfo)
 
 	numPhysicalCores := GetPhysicalCores(testcpuinfo)
-	if numPhysicalCores != 6 {
-		t.Errorf("Expected 6 physical cores, found %d", numPhysicalCores)
-	}
+	assert.Equal(t, 6, numPhysicalCores)
 }
 
 func TestPhysicalCoresReadingFromCpuBus(t *testing.T) {
-	cpuBusPath = "./testdata/"
-	testfile := "./testdata/cpuinfo_arm" //cpuinfo without core id
+	cpuBusPath = "./testdata/"           // overwriting global variable to mock sysfs
+	testfile := "./testdata/cpuinfo_arm" // mock cpuinfo without core id
 
 	testcpuinfo, err := ioutil.ReadFile(testfile)
-	if err != nil {
-		t.Fatalf("unable to read input test file %s", testfile)
-	}
+	assert.Nil(t, err)
+	assert.NotNil(t, testcpuinfo)
+
 	numPhysicalCores := GetPhysicalCores(testcpuinfo)
-	if numPhysicalCores != 2 {
-		t.Errorf("Expected 2 physical cores, found %d", numPhysicalCores)
-	}
+	assert.Equal(t, 2, numPhysicalCores)
 }
 
 func TestPhysicalCoresFromWrongSysFs(t *testing.T) {
-	cpuBusPath = "./testdata/wrongsysfs"
-	testfile := "./testdata/cpuinfo_arm" //cpuinfo without core id
+	cpuBusPath = "./testdata/wrongsysfs" // overwriting global variable to mock sysfs
+	testfile := "./testdata/cpuinfo_arm" // mock cpuinfo without core id
 
 	testcpuinfo, err := ioutil.ReadFile(testfile)
-	if err != nil {
-		t.Fatalf("unable to read input test file %s", testfile)
-	}
+	assert.Nil(t, err)
+	assert.NotNil(t, testcpuinfo)
+
 	numPhysicalCores := GetPhysicalCores(testcpuinfo)
-	if numPhysicalCores != 0 {
-		t.Errorf("Expected 0 physical cores, found %d", numPhysicalCores)
-	}
+	assert.Equal(t, 0, numPhysicalCores)
 }
 
 func TestSockets(t *testing.T) {
 	testfile := "./testdata/cpuinfo"
 
 	testcpuinfo, err := ioutil.ReadFile(testfile)
-	if err != nil {
-		t.Fatalf("unable to read input test file %s", testfile)
-	}
+	assert.Nil(t, err)
+	assert.NotNil(t, testcpuinfo)
+
 	numSockets := GetSockets(testcpuinfo)
-	if numSockets != 2 {
-		t.Errorf("Expected 2 sockets, found %d", numSockets)
-	}
+	assert.Equal(t, 2, numSockets)
 }
 
 func TestSocketsReadingFromCpuBus(t *testing.T) {
-	cpuBusPath = "./testdata/wrongsysfs"
-	testfile := "./testdata/cpuinfo_arm" //cpuinfo without physical id
+	cpuBusPath = "./testdata/wrongsysfs" // overwriting global variable to mock sysfs
+	testfile := "./testdata/cpuinfo_arm" // mock cpuinfo without physical id
 
 	testcpuinfo, err := ioutil.ReadFile(testfile)
-	if err != nil {
-		t.Fatalf("unable to read input test file %s", testfile)
-	}
+	assert.Nil(t, err)
+	assert.NotNil(t, testcpuinfo)
+
 	numSockets := GetSockets(testcpuinfo)
-	if numSockets != 0 {
-		t.Errorf("Expected 0 sockets, found %d", numSockets)
-	}
+	assert.Equal(t, 0, numSockets)
 }
 
 func TestSocketsReadingFromWrongSysFs(t *testing.T) {
-	cpuBusPath = "./testdata/"
-	testfile := "./testdata/cpuinfo_arm" //cpuinfo without physical id
+	cpuBusPath = "./testdata/"           // overwriting global variable to mock sysfs
+	testfile := "./testdata/cpuinfo_arm" // mock cpuinfo without physical id
 
 	testcpuinfo, err := ioutil.ReadFile(testfile)
-	if err != nil {
-		t.Fatalf("unable to read input test file %s", testfile)
-	}
+	assert.Nil(t, err)
+	assert.NotNil(t, testcpuinfo)
+
 	numSockets := GetSockets(testcpuinfo)
-	if numSockets != 1 {
-		t.Errorf("Expected 1 sockets, found %d", numSockets)
-	}
+	assert.Equal(t, 1, numSockets)
 }
 
 func TestTopology(t *testing.T) {
