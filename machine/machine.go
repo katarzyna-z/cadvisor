@@ -418,7 +418,7 @@ func extractValue(s string, r *regexp.Regexp) (bool, int, error) {
 	return false, -1, nil
 }
 
-/* getUniqueMatchesCount returns number of unique matches in given argument using provided regular expression */
+// getUniqueMatchesCount returns number of unique matches in given argument using provided regular expression
 func getUniqueMatchesCount(s string, r *regexp.Regexp) int {
 	matches := r.FindAllString(s, -1)
 	uniques := make(map[string]bool)
