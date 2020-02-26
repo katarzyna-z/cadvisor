@@ -21,6 +21,8 @@ import (
 	"path"
 	"strconv"
 	"strings"
+
+	"path/filepath"
 )
 
 const (
@@ -30,8 +32,14 @@ const (
 	dmiDir       = "/sys/class/dmi"
 	ppcDevTree   = "/proc/device-tree"
 	s390xDevTree = "/etc" // s390/s390x changes
+
+	nodeDir = "/sys/devices/system/node/"
 )
 
+type NodeInfo struct {
+    Id string
+    Name string
+}
 type CacheInfo struct {
 	// size in bytes
 	Size uint64
@@ -45,6 +53,10 @@ type CacheInfo struct {
 
 // Abstracts the lowest level calls to sysfs.
 type SysFs interface {
+    GetNodesDir() ([]string, error)
+
+    GetCPUDirs (nodePath string) ([]string, error)
+
 	// Get directory information for available block devices.
 	GetBlockDevices() ([]os.FileInfo, error)
 	// Get Size of a given block device.
@@ -72,6 +84,21 @@ type realSysFs struct{}
 
 func NewRealSysFs() SysFs {
 	return &realSysFs{}
+}
+
+func (self *realSysFs) GetNodesDir() ([]string, error) {
+    pathPattern := nodeDir + "node*[0-9]"
+	return filepath.Glob(pathPattern)
+}
+
+func (self *realSysFs) GetNode(nodePath string) ([]os.FileInfo, error) {
+	return ioutil.ReadDir(nodePath)
+}
+
+func (self *realSysFs) GetCPUDirs (nodePath string) ([]string, error) {
+	pathPattern := nodePath + "/cpu*[0-9]"
+	fmt.Println(pathPattern)
+	return filepath.Glob(pathPattern)
 }
 
 func (self *realSysFs) GetBlockDevices() ([]os.FileInfo, error) {

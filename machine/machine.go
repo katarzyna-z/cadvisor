@@ -234,6 +234,10 @@ func GetHugePagesInfo(hugepagesDirectory string) ([]info.HugePagesInfo, error) {
 	return hugePagesInfo, nil
 }
 
+func GetTopologyNew(sysFs sysfs.SysFs) {
+   sysinfo.GetNodesInfo(sysFs)
+}
+
 func GetTopology(sysFs sysfs.SysFs, cpuinfo string) ([]info.Node, int, error) {
 	nodes := []info.Node{}
 

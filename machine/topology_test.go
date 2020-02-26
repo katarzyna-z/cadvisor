@@ -25,6 +25,12 @@ import (
 	"github.com/google/cadvisor/utils/sysfs/fakesysfs"
 )
 
+func TestTopologyNew(t *testing.T) {
+    sysFs := sysfs.NewRealSysFs()
+
+    GetTopologyNew(sysFs)
+}
+
 func TestTopology(t *testing.T) {
 	if runtime.GOARCH != "amd64" {
 		t.Skip("cpuinfo testdata is for amd64")

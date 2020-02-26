@@ -55,6 +55,17 @@ type FakeSysFs struct {
 	cache sysfs.CacheInfo
 }
 
+func (self *FakeSysFs) GetNodesDir() ([]string, error) {
+
+    ///self.info.EntryName = "sda"
+	//return []os.FileInfo{&self.info}, nil
+    return nil, nil
+}
+
+func (self *FakeSysFs) GetCPUDirs (nodePath string) ([]string, error) {
+    return nil, nil
+}
+
 func (self *FakeSysFs) GetBlockDevices() ([]os.FileInfo, error) {
 	self.info.EntryName = "sda"
 	return []os.FileInfo{&self.info}, nil

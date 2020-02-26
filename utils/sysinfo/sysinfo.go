@@ -15,16 +15,28 @@
 package sysinfo
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
 
 	info "github.com/google/cadvisor/info/v1"
 	"github.com/google/cadvisor/utils/sysfs"
+	"github.com/google/go-cmp/cmp"
+
+	"k8s.io/klog"
 )
 
-var schedulerRegExp = regexp.MustCompile(`.*\[(.*)\].*`)
+var (
+	schedulerRegExp = regexp.MustCompile(`.*\[(.*)\].*`)
+	nodeDirRegExp   = regexp.MustCompile("node/node(\\d*)")
+	cpuDirRegExp    = regexp.MustCompile("/cpu(\\d*)")
+	memoryCapacityRegexp = regexp.MustCompile(`MemTotal:\s*([0-9]+) kB`)
+)
+
+const cacheLevel2 = 2
 
 // Get information about block devices present on the system.
 // Uses the passed in system interface to retrieve the low level OS information.
@@ -131,6 +143,215 @@ func GetNetworkDevices(sysfs sysfs.SysFs) ([]info.NetInfo, error) {
 		netDevices = append(netDevices, netInfo)
 	}
 	return netDevices, nil
+}
+
+func getMatchedIntByName(rgx *regexp.Regexp, str string) (int, error) {
+	matches := rgx.FindStringSubmatch(str)
+	if len(matches) != 2 {
+		return 0, fmt.Errorf("failed to match regexp")
+	}
+	valInt, err := strconv.Atoi(matches[1])
+	if err != nil {
+		fmt.Println(err)
+		return 0, err
+	}
+	return valInt, nil
+}
+
+// parseCapacity matches a Regexp in a []byte, returning the resulting value in bytes.
+// Assumes that the value matched by the Regexp is in KB.
+func parseCapacity(b []byte, r *regexp.Regexp) (uint64, error) {
+	matches := r.FindSubmatch(b)
+	if len(matches) != 2 {
+		return 0, fmt.Errorf("failed to match regexp in output: %q", string(b))
+	}
+	m, err := strconv.ParseUint(string(matches[1]), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	// Convert to bytes.
+	return m * 1024, err
+}
+
+func getIntValFromFile(filePath string) (int, error) {
+	val, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		fmt.Println(err)
+		return 0, err
+	}
+	valStr := strings.TrimSpace(string(val))
+	valInt, err := strconv.Atoi(valStr)
+	if err != nil {
+		fmt.Println(err)
+		return 0, err
+	}
+	return valInt, err
+}
+
+func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, error) {
+	nodes := []info.Node{}
+	nodesDirs, err := sysFs.GetNodesDir()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	for _, nodeDir := range nodesDirs {
+		id, err := getMatchedIntByName(nodeDirRegExp, nodeDir)
+		node := info.Node{Id: id}
+
+		cores, err := getCoresInfo(sysFs, nodeDir)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		for coreID, core := range cores {
+			threadID := core.Threads[0] //get any thread from core
+			caches, err := GetCacheInfo(sysFs, threadID)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			numThreadsPerCore := len(core.Threads)
+			numThreadsPerNode := len(cores) * numThreadsPerCore
+
+			for _, cache := range caches {
+				c := info.Cache{
+					Size:  cache.Size,
+					Level: cache.Level,
+					Type:  cache.Type,
+				}
+				if cache.Cpus == numThreadsPerNode && cache.Level > cacheLevel2 {
+					// Add a node-level cache.
+					cacheFound := false
+					for _,nodeCache := range node.Caches {
+					    if cmp.Equal(nodeCache, c) {
+					        cacheFound = true
+					    }
+					}
+					if !cacheFound {
+					    node.Caches = append(node.Caches, c)
+					}
+				} else if cache.Cpus == numThreadsPerCore {
+					// Add core level cache
+					cores[coreID].Caches = append(cores[coreID].Caches, c)
+				}
+				// Ignore unknown caches.
+			}
+		}
+		node.Cores = cores //TODO: Check if deep copy is needed
+		node.Memory, _ = getNodeMemInfo(nodeDir)
+		node.HugePages, _ = getHugePagesInfo(nodeDir)
+
+		file, _ := json.MarshalIndent(node, "", " ")
+		fmt.Println(string(file))
+
+		nodes = append(nodes, node)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	return nodes, nil
+}
+
+func getNodeMemInfo(nodeDir string) (uint64, error) {
+	meminfo := fmt.Sprintf("%s/meminfo", nodeDir)
+	var memory uint64
+	out, err := ioutil.ReadFile(meminfo)
+	// Ignore if per-node info is not available.
+	if err == nil {
+		m, err := parseCapacity(out, memoryCapacityRegexp)
+		if err != nil {
+			return 0, err
+		}
+		memory = uint64(m)
+	}
+	return memory, nil
+}
+
+// GetHugePagesInfo returns information about pre-allocated huge pages
+// hugepagesDirectory should be top directory of hugepages
+// Such as: /sys/kernel/mm/hugepages/
+func getHugePagesInfo(nodeDir string) ([]info.HugePagesInfo, error) {
+	hugepagesDirectory := fmt.Sprintf("%s/hugepages/", nodeDir)
+
+	var hugePagesInfo []info.HugePagesInfo
+	files, err := ioutil.ReadDir(hugepagesDirectory)
+	if err != nil {
+		// treat as non-fatal since kernels and machine can be
+		// configured to disable hugepage support
+		return hugePagesInfo, nil
+	}
+	for _, st := range files {
+		nameArray := strings.Split(st.Name(), "-")
+		pageSizeArray := strings.Split(nameArray[1], "kB")
+		pageSize, err := strconv.ParseUint(string(pageSizeArray[0]), 10, 64)
+		if err != nil {
+			return hugePagesInfo, err
+		}
+
+		numFile := hugepagesDirectory + st.Name() + "/nr_hugepages"
+		val, err := ioutil.ReadFile(numFile)
+		if err != nil {
+			return hugePagesInfo, err
+		}
+		var numPages uint64
+		// we use sscanf as the file as a new-line that trips up ParseUint
+		// it returns the number of tokens successfully parsed, so if
+		// n != 1, it means we were unable to parse a number from the file
+		n, err := fmt.Sscanf(string(val), "%d", &numPages)
+		if err != nil || n != 1 {
+			return hugePagesInfo, fmt.Errorf("could not parse file %v contents %q", numFile, string(val))
+		}
+
+		hugePagesInfo = append(hugePagesInfo, info.HugePagesInfo{
+			NumPages: numPages,
+			PageSize: pageSize,
+		})
+	}
+	return hugePagesInfo, nil
+}
+
+func getCoresInfo(sysFs sysfs.SysFs, nodeDir string) ([]info.Core, error) {
+	cpuDirs, err := sysFs.GetCPUDirs(nodeDir)
+	if err != nil {
+		klog.Errorf("Node without CPU")
+		return nil, nil
+	}
+
+	cores := make([]info.Core, 0, len(cpuDirs))
+	for _, cpuDir := range cpuDirs {
+		logicalID, err := getMatchedIntByName(cpuDirRegExp, cpuDir)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected format")
+		}
+
+		coreIDPath := cpuDir + "/topology/core_id"
+		physicalID, err := getIntValFromFile(coreIDPath)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected format")
+		}
+
+		coreIDx := -1
+		for id, core := range cores {
+			if core.Id == physicalID {
+				coreIDx = id
+			}
+		}
+		if coreIDx == -1 {
+			cores = append(cores, info.Core{})
+			coreIDx = len(cores) - 1
+		}
+		desiredCore := &cores[coreIDx]
+
+		desiredCore.Id = physicalID
+		if len(desiredCore.Threads) == 0 {
+			desiredCore.Threads = []int{logicalID}
+		} else {
+			desiredCore.Threads = append(desiredCore.Threads, logicalID)
+		}
+	}
+	return cores, nil
 }
 
 func GetCacheInfo(sysFs sysfs.SysFs, id int) ([]sysfs.CacheInfo, error) {
