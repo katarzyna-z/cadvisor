@@ -234,11 +234,12 @@ func GetHugePagesInfo(hugepagesDirectory string) ([]info.HugePagesInfo, error) {
 	return hugePagesInfo, nil
 }
 
-func GetTopologyNew(sysFs sysfs.SysFs) {
-   sysinfo.GetNodesInfo(sysFs)
+func GetTopology(sysFs sysfs.SysFs, cpuinfo string) ([]info.Node, int, error) {
+    fmt.Println(len(cpuinfo))
+	return sysinfo.GetNodesInfo(sysFs)
 }
 
-func GetTopology(sysFs sysfs.SysFs, cpuinfo string) ([]info.Node, int, error) {
+func GetTopologOldy(sysFs sysfs.SysFs, cpuinfo string) ([]info.Node, int, error) {
 	nodes := []info.Node{}
 
 	// s390/s390x changes

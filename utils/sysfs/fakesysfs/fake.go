@@ -17,9 +17,11 @@ package fakesysfs
 import (
 	"os"
 	"time"
+	"fmt"
 
 	"github.com/google/cadvisor/utils/sysfs"
 )
+
 
 // If we extend sysfs to support more interfaces, it might be worth making this a mock instead of a fake.
 type FileInfo struct {
@@ -53,17 +55,48 @@ func (self *FileInfo) Sys() interface{} {
 type FakeSysFs struct {
 	info  FileInfo
 	cache sysfs.CacheInfo
+
+	nodesPaths []string
+	nodePathErr error
+
+	cpusPaths map[string][]string
+	cpuPathErr error
+
+	coreThread map[string]int
 }
 
-func (self *FakeSysFs) GetNodesDir() ([]string, error) {
-
-    ///self.info.EntryName = "sda"
-	//return []os.FileInfo{&self.info}, nil
-    return nil, nil
+func (self *FakeSysFs) GetNodesPaths() ([]string, error) {
+    return self.nodesPaths, self.nodePathErr
 }
 
-func (self *FakeSysFs) GetCPUDirs (nodePath string) ([]string, error) {
-    return nil, nil
+func (self *FakeSysFs) GetCPUsPaths (nodePath string) ([]string, error) {
+    return self.cpusPaths[nodePath], self.cpuPathErr
+}
+
+func  (self *FakeSysFs) GetCoreID(coreIDPath string) (int, error) {
+    return self.coreThread[coreIDPath], nil
+}
+
+func (self *FakeSysFs) GetMemInfo(nodePath string ) ([]byte, error) {
+	return []byte("Node 0 MemTotal:       32817192 kB"), nil
+}
+
+func (self *FakeSysFs) GetHugePagesInfo(nodePath string) ([]os.FileInfo, error) {
+    files := make([]os.FileInfo, 0, 2)
+    files = append(files, &FileInfo{EntryName: "hugepages-2048kB"})
+    files = append(files, &FileInfo{EntryName: "hugepages-1048576kB"})
+	return files, nil
+}
+
+func (self *FakeSysFs) GetHugePagesNr(nodeDir string, hugePageName string) ([]byte, error) {
+    hugePageFile := fmt.Sprintf("%s/hugepages/%s/nr_hugepages", nodeDir, hugePageName)
+    hugePageNr := map[string][]byte{
+        "/fakeSysfs/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages": []byte("1\n"),
+        "/fakeSysfs/devices/system/node/node0/hugepages/hugepages-1048576kB/nr_hugepages": []byte("1\n"),
+        "/fakeSysfs/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages": []byte("1\n"),
+        "/fakeSysfs/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages": []byte("1\n"),
+    }
+    return hugePageNr[hugePageFile], nil
 }
 
 func (self *FakeSysFs) GetBlockDevices() ([]os.FileInfo, error) {
@@ -114,6 +147,21 @@ func (self *FakeSysFs) GetCacheInfo(cpu int, cache string) (sysfs.CacheInfo, err
 
 func (self *FakeSysFs) SetCacheInfo(cache sysfs.CacheInfo) {
 	self.cache = cache
+}
+
+
+func (self *FakeSysFs) SetNodesPaths(paths []string, err error) {
+    self.nodesPaths = paths //TODO: check deep copy
+    self.nodePathErr = err
+}
+
+func (self *FakeSysFs) SetCPUsPaths(paths map[string][]string, err error) {
+    self.cpusPaths = paths
+    self.cpuPathErr = err
+}
+
+func (self *FakeSysFs) SetCoreThreads(coreThread map[string]int) {
+    self.coreThread = coreThread
 }
 
 func (self *FakeSysFs) SetEntryName(name string) {

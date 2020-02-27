@@ -53,9 +53,17 @@ type CacheInfo struct {
 
 // Abstracts the lowest level calls to sysfs.
 type SysFs interface {
-    GetNodesDir() ([]string, error)
+    GetNodesPaths() ([]string, error)
 
-    GetCPUDirs (nodePath string) ([]string, error)
+    GetCPUsPaths (nodePath string) ([]string, error)
+
+    GetCoreID(coreIDPath string) (int, error)
+
+    GetMemInfo(nodeDir string) ([]byte, error)
+
+    GetHugePagesInfo(nodePath string) ([]os.FileInfo, error)
+
+    GetHugePagesNr(nodeDir string, hugePageName string) ([]byte, error)
 
 	// Get directory information for available block devices.
 	GetBlockDevices() ([]os.FileInfo, error)
@@ -86,20 +94,45 @@ func NewRealSysFs() SysFs {
 	return &realSysFs{}
 }
 
-func (self *realSysFs) GetNodesDir() ([]string, error) {
+func (self *realSysFs) GetNodesPaths() ([]string, error) {
     pathPattern := nodeDir + "node*[0-9]"
 	return filepath.Glob(pathPattern)
 }
 
-func (self *realSysFs) GetNode(nodePath string) ([]os.FileInfo, error) {
-	return ioutil.ReadDir(nodePath)
-}
-
-func (self *realSysFs) GetCPUDirs (nodePath string) ([]string, error) {
+func (self *realSysFs) GetCPUsPaths (nodePath string) ([]string, error) {
 	pathPattern := nodePath + "/cpu*[0-9]"
-	fmt.Println(pathPattern)
 	return filepath.Glob(pathPattern)
 }
+
+func (self *realSysFs) GetCoreID(cpuPath string) (int, error) {
+    coreIDPath := cpuPath + "/topology/core_id"
+    out, err := ioutil.ReadFile(coreIDPath)
+	if err != nil {
+		return 0, err
+	}
+	outStr := strings.TrimSpace(string(out))
+	outInt, err := strconv.Atoi(outStr)
+	if err != nil {
+		return 0, err
+	}
+	return outInt, err
+}
+
+func (self *realSysFs) GetMemInfo(nodePath string ) ([]byte, error) {
+    meminfo := fmt.Sprintf("%s/meminfo", nodePath)
+	return ioutil.ReadFile(meminfo)
+}
+
+func (self *realSysFs) GetHugePagesInfo(nodePath string) ([]os.FileInfo, error) {
+    hugepagesDirectory := fmt.Sprintf("%s/hugepages/", nodeDir)
+	return ioutil.ReadDir(hugepagesDirectory)
+}
+
+func (self *realSysFs) GetHugePagesNr(nodeDir string, hugePageName string) ([]byte, error) {
+    hugePageFile := fmt.Sprintf("%s/hugepages/%s/nr_hugepages", nodeDir, hugePageName)
+    return  ioutil.ReadFile(hugePageFile)
+}
+
 
 func (self *realSysFs) GetBlockDevices() ([]os.FileInfo, error) {
 	return ioutil.ReadDir(blockDir)
