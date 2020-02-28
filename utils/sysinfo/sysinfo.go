@@ -187,7 +187,7 @@ func GetHugePagesInfo(sysFs sysfs.SysFs, hugepagesDirectory string) ([]info.Huge
 	return hugePagesInfo, nil
 }
 
-// GetNodesInfo returns information about NUMA nodes and their topolog
+// GetNodesInfo returns information about NUMA nodes and their topology
 func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 	nodes := []info.Node{}
 	allLogicalCoresCount := 0

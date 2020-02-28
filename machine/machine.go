@@ -112,6 +112,7 @@ func GetMachineSwapCapacity() (uint64, error) {
 	return swapCapacity, err
 }
 
+// GetTopology returns CPU topology reading information from sysfs
 func GetTopology(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 	// s390/s390x changes
 	if isSystemZ() {

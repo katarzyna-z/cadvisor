@@ -172,7 +172,7 @@ func TestTopologyWithNodesWithoutCPU(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 0, numCores)
 
-	topologyJson, err := json.Marshal(topology)
+	topologyJSON, err := json.Marshal(topology)
 	if err != nil {
 		t.Errorf("failed to marsha topology, %v", err)
 	}
@@ -212,5 +212,5 @@ func TestTopologyWithNodesWithoutCPU(t *testing.T) {
      }
     ]
     `)
-	assert.JSONEq(t, string(expectedTopology), string(topologyJson))
+	assert.JSONEq(t, string(expectedTopology), string(topologyJSON))
 }

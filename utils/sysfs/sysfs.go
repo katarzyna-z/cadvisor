@@ -35,11 +35,13 @@ const (
 
 	hugePagesDirName = "hugepages"
 	coreIDFilePath   = "/topology/core_id"
-	HugePagesNrFile  = "nr_hugepages"
 	meminfoFile      = "meminfo"
 
 	cpuDirPattern  = "cpu*[0-9]"
 	nodeDirPattern = "node*[0-9]"
+
+	//HugePagesNrFile name of nr_hugepages file in sysfs
+	HugePagesNrFile = "nr_hugepages"
 )
 
 type CacheInfo struct {
