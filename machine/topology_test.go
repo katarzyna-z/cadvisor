@@ -78,22 +78,22 @@ func TestTopology(t *testing.T) {
 	}
 	sysFs.SetCoreThreads(coreThread, nil)
 
-    memTotal := []byte("Node 0 MemTotal:       32817192 kB")
-    sysFs.SetMemory(memTotal, nil)
+	memTotal := []byte("Node 0 MemTotal:       32817192 kB")
+	sysFs.SetMemory(memTotal, nil)
 
-    hugePages := []os.FileInfo{
-     &fakesysfs.FileInfo{EntryName: "hugepages-2048kB"},
-     &fakesysfs.FileInfo{EntryName: "hugepages-1048576kB"},
-    }
-    sysFs.SetHugePages(hugePages, nil)
+	hugePages := []os.FileInfo{
+		&fakesysfs.FileInfo{EntryName: "hugepages-2048kB"},
+		&fakesysfs.FileInfo{EntryName: "hugepages-1048576kB"},
+	}
+	sysFs.SetHugePages(hugePages, nil)
 
-    hugePageNr := map[string][]byte{
+	hugePageNr := map[string][]byte{
 		"/fakeSysfs/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages":    []byte("1"),
 		"/fakeSysfs/devices/system/node/node0/hugepages/hugepages-1048576kB/nr_hugepages": []byte("1"),
 		"/fakeSysfs/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages":    []byte("1"),
 		"/fakeSysfs/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages": []byte("1"),
 	}
-    sysFs.SetHugePagesNr(hugePageNr, nil)
+	sysFs.SetHugePagesNr(hugePageNr, nil)
 
 	topology, numCores, err := GetTopology(sysFs)
 

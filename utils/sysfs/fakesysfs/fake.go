@@ -62,15 +62,15 @@ type FakeSysFs struct {
 	cpuPathErr error
 
 	coreThread map[string][]byte
-	coreIDErr error
+	coreIDErr  error
 
 	memTotal []byte
-	memErr error
+	memErr   error
 
-	hugePages []os.FileInfo
+	hugePages    []os.FileInfo
 	hugePagesErr error
 
-	hugePagesNr map[string][]byte
+	hugePagesNr    map[string][]byte
 	hugePagesNrErr error
 }
 
@@ -82,7 +82,7 @@ func (self *FakeSysFs) GetNodesPaths() ([]string, error) {
 }
 
 func (self *FakeSysFs) GetCPUsPaths(nodePath string) ([]string, error) {
-    if len(self.cpusPaths[nodePath]) == 0 {
+	if len(self.cpusPaths[nodePath]) == 0 {
 		return nil, fmt.Errorf("Any path to specific CPU is not found for this node, nodePath: %s", nodePath)
 	}
 	return self.cpusPaths[nodePath], self.cpuPathErr
@@ -180,7 +180,7 @@ func (self *FakeSysFs) SetHugePages(hugePages []os.FileInfo, err error) {
 	self.hugePagesErr = err
 }
 
-func (self *FakeSysFs) SetHugePagesNr(hugePagesNr  map[string][]byte, err error) {
+func (self *FakeSysFs) SetHugePagesNr(hugePagesNr map[string][]byte, err error) {
 	self.hugePagesNr = hugePagesNr
 	self.hugePagesNrErr = err
 }
