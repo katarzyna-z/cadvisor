@@ -117,7 +117,6 @@ func GetTopology(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 	if isSystemZ() {
 		return nil, getNumCores(), nil
 	}
-
 	return sysinfo.GetNodesInfo(sysFs)
 }
 

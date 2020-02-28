@@ -89,7 +89,6 @@ func TestTopology(t *testing.T) {
 	if numCores != 12 {
 		t.Errorf("Expected 12 cores, found %d", numCores)
 	}
-
 	expected_topology := []info.Node{}
 	numNodes := 2
 	numCoresPerNode := 3
@@ -99,14 +98,12 @@ func TestTopology(t *testing.T) {
 		Type:  "unified",
 		Level: 1,
 	}
-
 	for i := 0; i < numNodes; i++ {
 		node := info.Node{Id: i}
 		// Copy over Memory from result. TODO(rjnagal): Use memory from fake.
 		node.Memory = topology[i].Memory
 		// Copy over HugePagesInfo from result. TODO(ohsewon): Use HugePagesInfo from fake.
 		node.HugePages = topology[i].HugePages
-
 		for j := 0; j < numCoresPerNode; j++ {
 			core := info.Core{Id: i*numCoresPerNode + j}
 			core.Caches = append(core.Caches, cache)

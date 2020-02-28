@@ -152,7 +152,7 @@ func (self *FakeSysFs) SetCacheInfo(cache sysfs.CacheInfo) {
 }
 
 func (self *FakeSysFs) SetNodesPaths(paths []string, err error) {
-	self.nodesPaths = paths //TODO: check deep copy
+	self.nodesPaths = paths
 	self.nodePathErr = err
 }
 

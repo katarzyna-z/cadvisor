@@ -278,12 +278,10 @@ func getNodeMemInfo(sysFs sysfs.SysFs, nodeDir string) (uint64, error) {
 		klog.Warningf("Found node without memory information, nodeDir: %s", nodeDir)
 		return 0, nil
 	}
-
 	matches := memoryCapacityRegexp.FindSubmatch(rawMem)
 	if len(matches) != 2 {
 		return 0, fmt.Errorf("failed to match regexp in output: %q", string(rawMem))
 	}
-
 	memory, err := strconv.ParseUint(string(matches[1]), 10, 64)
 	if err != nil {
 		return 0, err

@@ -21,7 +21,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-
 	"path/filepath"
 )
 
@@ -43,10 +42,6 @@ const (
 	nodeDirPattern = "node*[0-9]"
 )
 
-type NodeInfo struct {
-	Id   string
-	Name string
-}
 type CacheInfo struct {
 	// size in bytes
 	Size uint64
