@@ -30,7 +30,6 @@ import (
 	"github.com/google/cadvisor/utils/sysfs"
 	"github.com/google/cadvisor/utils/sysinfo"
 
-
 	"golang.org/x/sys/unix"
 )
 
@@ -114,7 +113,7 @@ func GetMachineSwapCapacity() (uint64, error) {
 }
 
 func GetTopology(sysFs sysfs.SysFs) ([]info.Node, int, error) {
-    // s390/s390x changes
+	// s390/s390x changes
 	if isSystemZ() {
 		return nil, getNumCores(), nil
 	}

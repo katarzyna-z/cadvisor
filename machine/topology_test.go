@@ -36,9 +36,9 @@ func TestTopology(t *testing.T) {
 	sysFs.SetCacheInfo(c)
 
 	nodesPaths := []string{
-	"/fakeSysfs/devices/system/node/node0",
+		"/fakeSysfs/devices/system/node/node0",
 		"/fakeSysfs/devices/system/node/node1",
-		}
+	}
 	sysFs.SetNodesPaths(nodesPaths, nil)
 
 	cpusPaths := map[string][]string{

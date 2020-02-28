@@ -308,7 +308,7 @@ func getCoresInfo(sysFs sysfs.SysFs, nodeDir string) ([]info.Core, int, error) {
 
 		rawPhysicalID, err := sysFs.GetCoreID(cpuDir)
 		if err != nil {
-			return nil, 0, fmt.Errorf("Unexpected format of core_id, cpuDir: ", cpuDir)
+			return nil, 0, err
 		}
 	    physicalID, err := strconv.Atoi(strings.TrimSpace(string(rawPhysicalID)))
 	    if err != nil {

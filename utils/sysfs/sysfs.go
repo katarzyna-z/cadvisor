@@ -32,8 +32,15 @@ const (
 	dmiDir       = "/sys/class/dmi"
 	ppcDevTree   = "/proc/device-tree"
 	s390xDevTree = "/etc" // s390/s390x changes
+	nodeDir      = "/sys/devices/system/node/"
 
-	nodeDir = "/sys/devices/system/node/"
+	hugePagesDirName = "hugepages"
+	coreIDFilePath   = "/topology/core_id"
+	hugePagesNrFile  = "nr_hugepages"
+	meminfoFile      = "meminfo"
+
+	cpuDirPattern  = "cpu*[0-9]"
+	nodeDirPattern = "node*[0-9]"
 )
 
 type NodeInfo struct {
@@ -57,7 +64,7 @@ type SysFs interface {
 
 	GetCPUsPaths(nodePath string) ([]string, error)
 
-	GetCoreID(coreIDPath string) ([]byte, error)
+	GetCoreID(coreIDFilePath string) ([]byte, error)
 
 	GetMemInfo(nodeDir string) ([]byte, error)
 
@@ -95,35 +102,39 @@ func NewRealSysFs() SysFs {
 }
 
 func (self *realSysFs) GetNodesPaths() ([]string, error) {
-	pathPattern := nodeDir + "node*[0-9]"
+	pathPattern := fmt.Sprintf("%s%s", nodeDir, nodeDirPattern)
 	nodePaths, err := filepath.Glob(pathPattern)
 	if len(nodePaths) == 0 {
-        return nil, fmt.Errorf("Any path to specific node is not found, nodeDir: %s", nodeDir)
+		return nil, fmt.Errorf("Any path to specific node is not found, nodeDir: %s", nodeDir)
 	}
 	return nodePaths, err
 }
 
 func (self *realSysFs) GetCPUsPaths(nodePath string) ([]string, error) {
-	pathPattern := nodePath + "/cpu*[0-9]"
-	return filepath.Glob(pathPattern)
+	pathPattern := fmt.Sprintf("%s/%s", nodePath, cpuDirPattern)
+	cpuPaths, err := filepath.Glob(pathPattern)
+	if len(cpuPaths) == 0 {
+		return nil, fmt.Errorf("Any path to specific CPU is not found for this node, nodePath: %s", nodePath)
+	}
+	return cpuPaths, err
 }
 
 func (self *realSysFs) GetCoreID(cpuPath string) ([]byte, error) {
-	coreIDPath := cpuPath + "/topology/core_id"
-	return ioutil.ReadFile(coreIDPath)
+	coreIDFilePath := fmt.Sprintf("%s%s", cpuPath, coreIDFilePath)
+	return ioutil.ReadFile(coreIDFilePath)
 }
 
 func (self *realSysFs) GetMemInfo(nodePath string) ([]byte, error) {
-	meminfo := fmt.Sprintf("%s/meminfo", nodePath)
+	meminfo := fmt.Sprintf("%s/%s", nodePath, meminfoFile)
 	return ioutil.ReadFile(meminfo)
 }
 
-func (self *realSysFs) GetHugePagesInfo(hugepagesDirectory string) ([]os.FileInfo, error) {
-	return ioutil.ReadDir(hugepagesDirectory)
+func (self *realSysFs) GetHugePagesInfo(hugePagesDirectory string) ([]os.FileInfo, error) {
+	return ioutil.ReadDir(hugePagesDirectory)
 }
 
 func (self *realSysFs) GetHugePagesNr(nodeDir string, hugePageName string) ([]byte, error) {
-	hugePageFile := fmt.Sprintf("%s/hugepages/%s/nr_hugepages", nodeDir, hugePageName)
+	hugePageFile := fmt.Sprintf("%s/%s/%s/%s", nodeDir, hugePagesDirName, hugePageName, hugePagesNrFile)
 	return ioutil.ReadFile(hugePageFile)
 }
 

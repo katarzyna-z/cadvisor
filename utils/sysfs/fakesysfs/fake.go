@@ -65,8 +65,8 @@ type FakeSysFs struct {
 }
 
 func (self *FakeSysFs) GetNodesPaths() ([]string, error) {
-    if len(self.nodesPaths) == 0 {
-        return nil, fmt.Errorf("Any path to specific node is not found")
+	if len(self.nodesPaths) == 0 {
+		return nil, fmt.Errorf("Any path to specific node is not found")
 	}
 	return self.nodesPaths, self.nodePathErr
 }
@@ -83,7 +83,7 @@ func (self *FakeSysFs) GetMemInfo(nodePath string) ([]byte, error) {
 	return []byte("Node 0 MemTotal:       32817192 kB"), nil
 }
 
-func (self *FakeSysFs) GetHugePagesInfo( hugepagesDirectory string) ([]os.FileInfo, error) {
+func (self *FakeSysFs) GetHugePagesInfo(hugepagesDirectory string) ([]os.FileInfo, error) {
 	files := make([]os.FileInfo, 0, 2)
 	files = append(files, &FileInfo{EntryName: "hugepages-2048kB"})
 	files = append(files, &FileInfo{EntryName: "hugepages-1048576kB"})
