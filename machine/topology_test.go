@@ -15,8 +15,7 @@
 package machine
 
 import (
-	//"encoding/json"
-	//"fmt"
+	"encoding/json"
 	"os"
 	"reflect"
 	"testing"
@@ -24,6 +23,7 @@ import (
 	info "github.com/google/cadvisor/info/v1"
 	"github.com/google/cadvisor/utils/sysfs"
 	"github.com/google/cadvisor/utils/sysfs/fakesysfs"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTopology(t *testing.T) {
@@ -97,9 +97,6 @@ func TestTopology(t *testing.T) {
 
 	topology, numCores, err := GetTopology(sysFs)
 
-	//topologyJson, _ := json.MarshalIndent(topology, "", " ")
-	//fmt.Println(string(topologyJson))
-
 	if err != nil {
 		t.Errorf("failed to get topology  %v", err)
 	}
@@ -143,4 +140,77 @@ func TestTopologyEmptySysFs(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected empty sysfs to fail.")
 	}
+}
+
+func TestTopologyWithNodesWithoutCPU(t *testing.T) {
+	sysFs := &fakesysfs.FakeSysFs{}
+	nodesPaths := []string{
+		"/fakeSysfs/devices/system/node/node0",
+		"/fakeSysfs/devices/system/node/node1",
+	}
+	sysFs.SetNodesPaths(nodesPaths, nil)
+
+	memTotal := []byte("MemTotal:       32817192 kB")
+	sysFs.SetMemory(memTotal, nil)
+
+	hugePages := []os.FileInfo{
+		&fakesysfs.FileInfo{EntryName: "hugepages-2048kB"},
+		&fakesysfs.FileInfo{EntryName: "hugepages-1048576kB"},
+	}
+	sysFs.SetHugePages(hugePages, nil)
+
+	hugePageNr := map[string][]byte{
+		"/fakeSysfs/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages":    []byte("1"),
+		"/fakeSysfs/devices/system/node/node0/hugepages/hugepages-1048576kB/nr_hugepages": []byte("1"),
+		"/fakeSysfs/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages":    []byte("1"),
+		"/fakeSysfs/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages": []byte("1"),
+	}
+	sysFs.SetHugePagesNr(hugePageNr, nil)
+
+	topology, numCores, err := GetTopology(sysFs)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 0, numCores)
+
+	topologyJson, err := json.Marshal(topology)
+	if err != nil {
+		t.Errorf("failed to marsha topology, %v", err)
+	}
+	expectedTopology := []byte(
+		`[
+     {
+      "caches": null,
+      "cores": null,
+      "hugepages": [
+       {
+        "num_pages": 1,
+        "page_size": 2048
+       },
+       {
+        "num_pages": 1,
+        "page_size": 1048576
+       }
+      ],
+      "memory": 33604804608,
+      "node_id": 0
+     },
+     {
+      "caches": null,
+      "cores": null,
+      "hugepages": [
+       {
+        "num_pages": 1,
+        "page_size": 2048
+       },
+       {
+        "num_pages": 1,
+        "page_size": 1048576
+       }
+      ],
+      "memory": 33604804608,
+      "node_id": 1
+     }
+    ]
+    `)
+	assert.JSONEq(t, string(expectedTopology), string(topologyJson))
 }
