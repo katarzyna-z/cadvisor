@@ -130,7 +130,6 @@ func (self *realSysFs) GetHugePagesInfo(hugePagesDirectory string) ([]os.FileInf
 
 func (self *realSysFs) GetHugePagesNr(hugepagesDirectory string, hugePageName string) ([]byte, error) {
 	hugePageFile := fmt.Sprintf("%s%s/%s", hugepagesDirectory, hugePageName, HugePagesNrFile)
-	fmt.Println(hugePageFile)
 	return ioutil.ReadFile(hugePageFile)
 }
 

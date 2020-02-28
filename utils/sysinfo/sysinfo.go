@@ -35,8 +35,8 @@ var (
 )
 
 const (
-    cacheLevel2 = 2
-    hugepagesDir = "hugepages/"
+	cacheLevel2  = 2
+	hugepagesDir = "hugepages/"
 )
 
 // Get information about block devices present on the system.
@@ -212,7 +212,7 @@ func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 		node.Cores = cores
 
 		allLogicalCoresCount += logicalCoreCount
-		err = addCacheInfo(sysFs, node)
+		err = addCacheInfo(sysFs, &node)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -222,7 +222,7 @@ func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 			return nil, 0, err
 		}
 
-        hugepagesDirectory := fmt.Sprintf("%s/%s", nodeDir, hugepagesDir)
+		hugepagesDirectory := fmt.Sprintf("%s/%s", nodeDir, hugepagesDir)
 		node.HugePages, err = GetHugePagesInfo(sysFs, hugepagesDirectory)
 		if err != nil {
 			return nil, 0, err
@@ -233,7 +233,7 @@ func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 	return nodes, allLogicalCoresCount, err
 }
 
-func addCacheInfo(sysFs sysfs.SysFs, node info.Node) error {
+func addCacheInfo(sysFs sysfs.SysFs, node *info.Node) error {
 	for coreID, core := range node.Cores {
 		threadID := core.Threads[0] //get any thread for core
 		caches, err := GetCacheInfo(sysFs, threadID)
@@ -308,10 +308,10 @@ func getCoresInfo(sysFs sysfs.SysFs, nodeDir string) ([]info.Core, int, error) {
 		if err != nil {
 			return nil, 0, err
 		}
-	    physicalID, err := strconv.Atoi(strings.TrimSpace(string(rawPhysicalID)))
-	    if err != nil {
-		    return nil, 0, err
-	    }
+		physicalID, err := strconv.Atoi(strings.TrimSpace(string(rawPhysicalID)))
+		if err != nil {
+			return nil, 0, err
+		}
 
 		coreIDx := -1
 		for id, core := range cores {
