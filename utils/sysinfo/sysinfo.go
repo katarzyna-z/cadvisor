@@ -34,7 +34,10 @@ var (
 	memoryCapacityRegexp = regexp.MustCompile(`MemTotal:\s*([0-9]+) kB`)
 )
 
-const cacheLevel2 = 2
+const (
+    cacheLevel2 = 2
+    hugepagesDir = "hugepages/"
+)
 
 // Get information about block devices present on the system.
 // Uses the passed in system interface to retrieve the low level OS information.
@@ -143,130 +146,12 @@ func GetNetworkDevices(sysfs sysfs.SysFs) ([]info.NetInfo, error) {
 	return netDevices, nil
 }
 
-func getMatchedIntByName(rgx *regexp.Regexp, str string) (int, error) {
-	matches := rgx.FindStringSubmatch(str)
-	if len(matches) != 2 {
-		return 0, fmt.Errorf("failed to match regexp")
-	}
-	valInt, err := strconv.Atoi(matches[1])
-	if err != nil {
-		fmt.Println(err)
-		return 0, err
-	}
-	return valInt, nil
-}
-
-func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
-	nodes := []info.Node{}
-	allLogicalCoresCount := 0
-	nodesDirs, err := sysFs.GetNodesPaths()
-
-	for _, nodeDir := range nodesDirs {
-		id, err := getMatchedIntByName(nodeDirRegExp, nodeDir)
-		node := info.Node{Id: id}
-
-		cores, logicalCoreCount, err := getCoresInfo(sysFs, nodeDir)
-		if err != nil {
-			return nil, 0, err
-		}
-        allLogicalCoresCount += logicalCoreCount
-		err = addCacheInfo(sysFs, node, cores)
-		if err != nil {
-			return nil, 0, err
-		}
-
-		node.Cores = cores //TODO: Check if deep copy is needed
-		node.Memory, err = getNodeMemInfo(sysFs, nodeDir)
-		if err != nil {
-		    return nil, 0, err
-	    }
-
-		node.HugePages, err = getHugePagesInfo(sysFs, nodeDir)
-        if err != nil {
-		    return nil, 0, err
-	    }
-
-		nodes = append(nodes, node)
-	}
-	return nodes, allLogicalCoresCount, err
-}
-
-func addCacheInfo(sysFs sysfs.SysFs, node info.Node, cores []info.Core) (error) {
-	for coreID, core := range cores {
-		threadID := core.Threads[0] //get any thread from core
-		caches, err := GetCacheInfo(sysFs, threadID)
-		if err != nil {
-			return err
-		}
-
-		numThreadsPerCore := len(core.Threads)
-		numThreadsPerNode := len(cores) * numThreadsPerCore
-
-		for _, cache := range caches {
-			c := info.Cache{
-				Size:  cache.Size,
-				Level: cache.Level,
-				Type:  cache.Type,
-			}
-			if cache.Cpus == numThreadsPerNode && cache.Level > cacheLevel2 {
-				// Add a node-level cache.
-				cacheFound := false
-				for _, nodeCache := range node.Caches {
-					if cmp.Equal(nodeCache, c) {
-						cacheFound = true
-					}
-				}
-				if !cacheFound {
-					node.Caches = append(node.Caches, c)
-				}
-			} else if cache.Cpus == numThreadsPerCore {
-				// Add core level cache
-				cores[coreID].Caches = append(cores[coreID].Caches, c)
-			}
-			// Ignore unknown caches.
-		}
-	}
-	return nil
-}
-
-// parseCapacity matches a Regexp in a []byte, returning the resulting value in bytes.
-// Assumes that the value matched by the Regexp is in KB.
-func parseCapacity(b []byte, r *regexp.Regexp) (uint64, error) {
-	matches := r.FindSubmatch(b)
-	if len(matches) != 2 {
-		return 0, fmt.Errorf("failed to match regexp in output: %q", string(b))
-	}
-	m, err := strconv.ParseUint(string(matches[1]), 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	// Convert to bytes.
-	return m * 1024, err
-}
-
-func getNodeMemInfo(sysFs sysfs.SysFs, nodeDir string) (uint64, error) {
-	var memory uint64
-	out, err := sysFs.GetMemInfo(nodeDir)
-	if err != nil {
-         //Ignore if per-node info is not available.
-         //TODO: add log!
-         return memory, nil
-	}
-	m, err := parseCapacity(out, memoryCapacityRegexp)
-	if err != nil {
-		return 0, err
-	}
-	memory = uint64(m)
-	return memory, nil
-}
-
 // GetHugePagesInfo returns information about pre-allocated huge pages
 // hugepagesDirectory should be top directory of hugepages
 // Such as: /sys/kernel/mm/hugepages/
-func getHugePagesInfo(sysFs sysfs.SysFs, nodeDir string) ([]info.HugePagesInfo, error) {
+func GetHugePagesInfo(sysFs sysfs.SysFs, hugepagesDirectory string) ([]info.HugePagesInfo, error) {
 	var hugePagesInfo []info.HugePagesInfo
-	files, err := sysFs.GetHugePagesInfo(nodeDir)
+	files, err := sysFs.GetHugePagesInfo(hugepagesDirectory)
 	if err != nil {
 		// treat as non-fatal since kernels and machine can be
 		// configured to disable hugepage support
@@ -281,7 +166,7 @@ func getHugePagesInfo(sysFs sysfs.SysFs, nodeDir string) ([]info.HugePagesInfo, 
 			return hugePagesInfo, err
 		}
 
-		val, err := sysFs.GetHugePagesNr(nodeDir, st.Name())
+		val, err := sysFs.GetHugePagesNr(hugepagesDirectory, st.Name())
 		if err != nil {
 			return hugePagesInfo, err
 		}
@@ -302,24 +187,133 @@ func getHugePagesInfo(sysFs sysfs.SysFs, nodeDir string) ([]info.HugePagesInfo, 
 	return hugePagesInfo, nil
 }
 
+func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
+	nodes := []info.Node{}
+	allLogicalCoresCount := 0
+
+	nodesDirs, err := sysFs.GetNodesPaths()
+	if err != nil {
+		return nil, 0, err
+	}
+	//BELOW does not make sense!!!!
+	// 	if err != nil || len(nodesDirs) {
+	//         // Some VMs don't fill topology data. Export single package.
+	//         //nodesDirs = []string{mt.Sprintf("/sys/devices/system/node/node%d", 0)}
+	// 	}
+
+	for _, nodeDir := range nodesDirs {
+		id, err := getMatchedInt(nodeDirRegExp, nodeDir)
+		node := info.Node{Id: id}
+
+		cores, logicalCoreCount, err := getCoresInfo(sysFs, nodeDir)
+		if err != nil {
+			return nil, 0, err
+		}
+		node.Cores = cores
+
+		allLogicalCoresCount += logicalCoreCount
+		err = addCacheInfo(sysFs, node)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		node.Memory, err = getNodeMemInfo(sysFs, nodeDir)
+		if err != nil {
+			return nil, 0, err
+		}
+
+        hugepagesDirectory := fmt.Sprintf("%s/%s", nodeDir, hugepagesDir)
+		node.HugePages, err = GetHugePagesInfo(sysFs, hugepagesDirectory)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		nodes = append(nodes, node)
+	}
+	return nodes, allLogicalCoresCount, err
+}
+
+func addCacheInfo(sysFs sysfs.SysFs, node info.Node) error {
+	for coreID, core := range node.Cores {
+		threadID := core.Threads[0] //get any thread for core
+		caches, err := GetCacheInfo(sysFs, threadID)
+		if err != nil {
+			return err
+		}
+
+		numThreadsPerCore := len(core.Threads)
+		numThreadsPerNode := len(node.Cores) * numThreadsPerCore
+
+		for _, cache := range caches {
+			c := info.Cache{
+				Size:  cache.Size,
+				Level: cache.Level,
+				Type:  cache.Type,
+			}
+			if cache.Cpus == numThreadsPerNode && cache.Level > cacheLevel2 {
+				// Add a node-level cache.
+				cacheFound := false
+				for _, nodeCache := range node.Caches {
+					if cmp.Equal(nodeCache, c) {
+						cacheFound = true
+					}
+				}
+				if !cacheFound {
+					node.Caches = append(node.Caches, c)
+				}
+			} else if cache.Cpus == numThreadsPerCore {
+				// Add core level cache
+				node.Cores[coreID].Caches = append(node.Cores[coreID].Caches, c)
+			}
+			// Ignore unknown caches.
+		}
+	}
+	return nil
+}
+
+func getNodeMemInfo(sysFs sysfs.SysFs, nodeDir string) (uint64, error) {
+	rawMem, err := sysFs.GetMemInfo(nodeDir)
+	if err != nil {
+		//Ignore if per-node info is not available.
+		klog.Warningf("Found node without memory information, nodeDir: %s", nodeDir)
+		return 0, nil
+	}
+
+	matches := memoryCapacityRegexp.FindSubmatch(rawMem)
+	if len(matches) != 2 {
+		return 0, fmt.Errorf("failed to match regexp in output: %q", string(rawMem))
+	}
+
+	memory, err := strconv.ParseUint(string(matches[1]), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	memory = memory * 1024 // Convert to bytes
+	return uint64(memory), nil
+}
+
 func getCoresInfo(sysFs sysfs.SysFs, nodeDir string) ([]info.Core, int, error) {
 	cpuDirs, err := sysFs.GetCPUsPaths(nodeDir)
 	if err != nil {
-		klog.Errorf("Node without CPU")
+		klog.Warningf("Found node without any CPU, nodeDir: %s", nodeDir)
 		return nil, 0, nil
 	}
 
 	cores := make([]info.Core, 0, len(cpuDirs))
 	for _, cpuDir := range cpuDirs {
-		cpuID, err := getMatchedIntByName(cpuDirRegExp, cpuDir)
+		cpuID, err := getMatchedInt(cpuDirRegExp, cpuDir)
 		if err != nil {
-			return nil, 0, fmt.Errorf("unexpected format", cpuDirRegExp, cpuDir)
+			return nil, 0, fmt.Errorf("Unexpected format of CPU directory, cpuDir: ", cpuDirRegExp, cpuDir)
 		}
 
-		physicalID, err := sysFs.GetCoreID(cpuDir)
+		rawPhysicalID, err := sysFs.GetCoreID(cpuDir)
 		if err != nil {
-			return nil, 0, fmt.Errorf("unexpected format", cpuDir)
+			return nil, 0, fmt.Errorf("Unexpected format of core_id, cpuDir: ", cpuDir)
 		}
+	    physicalID, err := strconv.Atoi(strings.TrimSpace(string(rawPhysicalID)))
+	    if err != nil {
+		    return nil, 0, err
+	    }
 
 		coreIDx := -1
 		for id, core := range cores {
@@ -410,4 +404,17 @@ func getNetworkStats(name string, sysFs sysfs.SysFs) (info.InterfaceStats, error
 
 func GetSystemUUID(sysFs sysfs.SysFs) (string, error) {
 	return sysFs.GetSystemUUID()
+}
+
+func getMatchedInt(rgx *regexp.Regexp, str string) (int, error) {
+	matches := rgx.FindStringSubmatch(str)
+	if len(matches) != 2 {
+		return 0, fmt.Errorf("failed to match regexp")
+	}
+	valInt, err := strconv.Atoi(matches[1])
+	if err != nil {
+		fmt.Println(err)
+		return 0, err
+	}
+	return valInt, nil
 }

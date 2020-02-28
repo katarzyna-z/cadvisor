@@ -15,11 +15,9 @@
 package machine
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"fmt"
+	//"encoding/json"
+	//"fmt"
 	"reflect"
-	"runtime"
 	"testing"
 
 	info "github.com/google/cadvisor/info/v1"
@@ -27,25 +25,7 @@ import (
 	"github.com/google/cadvisor/utils/sysfs/fakesysfs"
 )
 
-// func TestTopologyNew(t *testing.T) {
-// 	sysFs := sysfs.NewRealSysFs()
-//
-// 	_, _, err := GetTopologyNew(sysFs)
-//
-// 	fmt.Println(err)
-// 	//nodesJson, _ := json.MarshalIndent(nodes, "", " ")
-// 	//fmt.Println(string(nodesJson))
-// }
-
 func TestTopology(t *testing.T) {
-	if runtime.GOARCH != "amd64" {
-		t.Skip("cpuinfo testdata is for amd64")
-	}
-	testfile := "./testdata/cpuinfo"
-	testcpuinfo, err := ioutil.ReadFile(testfile)
-	if err != nil {
-		t.Fatalf("unable to read input test file %s", testfile)
-	}
 	sysFs := &fakesysfs.FakeSysFs{}
 	c := sysfs.CacheInfo{
 		Size:  32 * 1024,
@@ -55,8 +35,10 @@ func TestTopology(t *testing.T) {
 	}
 	sysFs.SetCacheInfo(c)
 
-	nodesPaths := []string{"/fakeSysfs/devices/system/node/node0",
-		"/fakeSysfs/devices/system/node/node1"}
+	nodesPaths := []string{
+	"/fakeSysfs/devices/system/node/node0",
+		"/fakeSysfs/devices/system/node/node1",
+		}
 	sysFs.SetNodesPaths(nodesPaths, nil)
 
 	cpusPaths := map[string][]string{
@@ -79,26 +61,26 @@ func TestTopology(t *testing.T) {
 	}
 	sysFs.SetCPUsPaths(cpusPaths, nil)
 
-	coreThread := map[string]int{
-		"/fakeSysfs/devices/system/node/node0/cpu0":  0,
-		"/fakeSysfs/devices/system/node/node0/cpu1":  1,
-		"/fakeSysfs/devices/system/node/node0/cpu2":  2,
-		"/fakeSysfs/devices/system/node/node0/cpu3":  3,
-		"/fakeSysfs/devices/system/node/node0/cpu4":  4,
-		"/fakeSysfs/devices/system/node/node0/cpu5":  5,
-		"/fakeSysfs/devices/system/node/node0/cpu6":  0,
-		"/fakeSysfs/devices/system/node/node0/cpu7":  1,
-		"/fakeSysfs/devices/system/node/node0/cpu8":  2,
-		"/fakeSysfs/devices/system/node/node0/cpu9":  3,
-		"/fakeSysfs/devices/system/node/node0/cpu10": 4,
-		"/fakeSysfs/devices/system/node/node0/cpu11": 5,
+	coreThread := map[string][]byte{
+		"/fakeSysfs/devices/system/node/node0/cpu0":  []byte("0"),
+		"/fakeSysfs/devices/system/node/node0/cpu1":  []byte("1"),
+		"/fakeSysfs/devices/system/node/node0/cpu2":  []byte("2"),
+		"/fakeSysfs/devices/system/node/node0/cpu3":  []byte("3"),
+		"/fakeSysfs/devices/system/node/node0/cpu4":  []byte("4"),
+		"/fakeSysfs/devices/system/node/node0/cpu5":  []byte("5"),
+		"/fakeSysfs/devices/system/node/node0/cpu6":  []byte("0"),
+		"/fakeSysfs/devices/system/node/node0/cpu7":  []byte("1"),
+		"/fakeSysfs/devices/system/node/node0/cpu8":  []byte("2"),
+		"/fakeSysfs/devices/system/node/node0/cpu9":  []byte("3"),
+		"/fakeSysfs/devices/system/node/node0/cpu10": []byte("4"),
+		"/fakeSysfs/devices/system/node/node0/cpu11": []byte("5"),
 	}
 	sysFs.SetCoreThreads(coreThread)
 
-	topology, numCores, err := GetTopology(sysFs, string(testcpuinfo))
+	topology, numCores, err := GetTopology(sysFs)
 
-	topologyJson, _ := json.MarshalIndent(topology, "", " ")
-	fmt.Println(string(topologyJson))
+	//topologyJson, _ := json.MarshalIndent(topology, "", " ")
+	//fmt.Println(string(topologyJson))
 
 	if err != nil {
 		t.Errorf("failed to get topology  %v", err)
@@ -141,98 +123,9 @@ func TestTopology(t *testing.T) {
 	}
 }
 
-// func TestTopologyWithSimpleCpuinfo(t *testing.T) {
-// 	if isSystemZ() {
-// 		t.Skip("systemZ has no topology info")
-// 	}
-// 	sysFs := &fakesysfs.FakeSysFs{}
-// 	c := sysfs.CacheInfo{
-// 		Size:  32 * 1024,
-// 		Type:  "unified",
-// 		Level: 1,
-// 		Cpus:  1,
-// 	}
-// 	sysFs.SetCacheInfo(c)
-// 	topology, numCores, err := GetTopology(sysFs, "processor\t: 0\n")
-// 	if err != nil {
-// 		t.Errorf("Expected cpuinfo with no topology data to succeed.")
-// 	}
-// 	node := info.Node{Id: 0}
-// 	core := info.Core{Id: 0}
-// 	core.Threads = append(core.Threads, 0)
-// 	cache := info.Cache{
-// 		Size:  32 * 1024,
-// 		Type:  "unified",
-// 		Level: 1,
-// 	}
-// 	core.Caches = append(core.Caches, cache)
-// 	node.Cores = append(node.Cores, core)
-// 	// Copy over Memory from result. TODO(rjnagal): Use memory from fake.
-// 	node.Memory = topology[0].Memory
-// 	// Copy over HugePagesInfo from result. TODO(ohsewon): Use HugePagesInfo from fake.
-// 	node.HugePages = topology[0].HugePages
-// 	expected := []info.Node{node}
-// 	if !reflect.DeepEqual(topology, expected) {
-// 		t.Errorf("Expected topology %+v, got %+v", expected, topology)
-// 	}
-// 	if numCores != 1 {
-// 		t.Errorf("Expected 1 core, found %d", numCores)
-// 	}
-// }
-//
-// func TestTopologyEmptyCpuinfo(t *testing.T) {
-// 	if isSystemZ() {
-// 		t.Skip("systemZ has no topology info")
-// 	}
-// 	_, _, err := GetTopology(&fakesysfs.FakeSysFs{}, "")
-// 	if err == nil {
-// 		t.Errorf("Expected empty cpuinfo to fail.")
-// 	}
-// }
-//
-// func TestTopologyCoreId(t *testing.T) {
-// 	val, _ := getCoreIdFromCpuBus("./testdata", 0)
-// 	if val != 0 {
-// 		t.Errorf("Expected core 0, found %d", val)
-// 	}
-//
-// 	val, _ = getCoreIdFromCpuBus("./testdata", 9999)
-// 	if val != 8888 {
-// 		t.Errorf("Expected core 8888, found %d", val)
-// 	}
-// }
-//
-// func TestTopologyNodeId(t *testing.T) {
-// 	val, _ := getNodeIdFromCpuBus("./testdata", 0)
-// 	if val != 0 {
-// 		t.Errorf("Expected core 0, found %d", val)
-// 	}
-//
-// 	val, _ = getNodeIdFromCpuBus("./testdata", 9999)
-// 	if val != 1234 {
-// 		t.Errorf("Expected core 1234 , found %d", val)
-// 	}
-// }
-//
-// func TestGetHugePagesInfo(t *testing.T) {
-// 	testPath := "./testdata/hugepages/"
-// 	expected := []info.HugePagesInfo{
-// 		{
-// 			NumPages: 1,
-// 			PageSize: 1048576,
-// 		},
-// 		{
-// 			NumPages: 2,
-// 			PageSize: 2048,
-// 		},
-// 	}
-//
-// 	val, err := GetHugePagesInfo(testPath)
-// 	if err != nil {
-// 		t.Errorf("Failed to GetHugePagesInfo() for sample path %s: %v", testPath, err)
-// 	}
-//
-// 	if !reflect.DeepEqual(expected, val) {
-// 		t.Errorf("Expected HugePagesInfo %+v, got %+v", expected, val)
-// 	}
-// }
+func TestTopologyEmptySysFs(t *testing.T) {
+	_, _, err := GetTopology(&fakesysfs.FakeSysFs{})
+	if err == nil {
+		t.Errorf("Expected empty sysfs to fail.")
+	}
+}
