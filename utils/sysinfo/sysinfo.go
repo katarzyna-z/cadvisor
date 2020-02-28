@@ -195,7 +195,7 @@ func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	//BELOW does not make sense!!!!
+	//BELOW does not make sense!!!! - REMOVE COMMENTED CODE AFTER REVIEW!!!
 	// 	if err != nil || len(nodesDirs) {
 	//         // Some VMs don't fill topology data. Export single package.
 	//         //nodesDirs = []string{mt.Sprintf("/sys/devices/system/node/node%d", 0)}
@@ -301,7 +301,7 @@ func getCoresInfo(sysFs sysfs.SysFs, nodeDir string) ([]info.Core, int, error) {
 	for _, cpuDir := range cpuDirs {
 		cpuID, err := getMatchedInt(cpuDirRegExp, cpuDir)
 		if err != nil {
-			return nil, 0, fmt.Errorf("Unexpected format of CPU directory, cpuDir: ", cpuDirRegExp, cpuDir)
+			return nil, 0, fmt.Errorf("Unexpected format of CPU directory, cpuDirRegExp %s, cpuDir: %s", cpuDirRegExp, cpuDir)
 		}
 
 		rawPhysicalID, err := sysFs.GetCoreID(cpuDir)

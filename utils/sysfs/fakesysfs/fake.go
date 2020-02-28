@@ -62,43 +62,47 @@ type FakeSysFs struct {
 	cpuPathErr error
 
 	coreThread map[string][]byte
+	coreIDErr error
+
+	memTotal []byte
+	memErr error
+
+	hugePages []os.FileInfo
+	hugePagesErr error
+
+	hugePagesNr map[string][]byte
+	hugePagesNrErr error
 }
 
 func (self *FakeSysFs) GetNodesPaths() ([]string, error) {
 	if len(self.nodesPaths) == 0 {
-		return nil, fmt.Errorf("Any path to specific node is not found")
+		return nil, fmt.Errorf("Any path to specific node is not found, nodeDir: %s", self.nodesPaths)
 	}
 	return self.nodesPaths, self.nodePathErr
 }
 
 func (self *FakeSysFs) GetCPUsPaths(nodePath string) ([]string, error) {
+    if len(self.cpusPaths[nodePath]) == 0 {
+		return nil, fmt.Errorf("Any path to specific CPU is not found for this node, nodePath: %s", nodePath)
+	}
 	return self.cpusPaths[nodePath], self.cpuPathErr
 }
 
 func (self *FakeSysFs) GetCoreID(coreIDPath string) ([]byte, error) {
-	return self.coreThread[coreIDPath], nil
+	return self.coreThread[coreIDPath], self.coreIDErr
 }
 
 func (self *FakeSysFs) GetMemInfo(nodePath string) ([]byte, error) {
-	return []byte("Node 0 MemTotal:       32817192 kB"), nil
+	return self.memTotal, self.memErr
 }
 
 func (self *FakeSysFs) GetHugePagesInfo(hugepagesDirectory string) ([]os.FileInfo, error) {
-	files := make([]os.FileInfo, 0, 2)
-	files = append(files, &FileInfo{EntryName: "hugepages-2048kB"})
-	files = append(files, &FileInfo{EntryName: "hugepages-1048576kB"})
-	return files, nil
+	return self.hugePages, self.hugePagesErr
 }
 
 func (self *FakeSysFs) GetHugePagesNr(hugepagesDirectory string, hugePageName string) ([]byte, error) {
-	hugePageFile := fmt.Sprintf("%s%s/nr_hugepages", hugepagesDirectory, hugePageName)
-	hugePageNr := map[string][]byte{
-		"/fakeSysfs/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages":    []byte("1\n"),
-		"/fakeSysfs/devices/system/node/node0/hugepages/hugepages-1048576kB/nr_hugepages": []byte("1\n"),
-		"/fakeSysfs/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages":    []byte("1\n"),
-		"/fakeSysfs/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages": []byte("1\n"),
-	}
-	return hugePageNr[hugePageFile], nil
+	hugePageFile := fmt.Sprintf("%s%s/%s", hugepagesDirectory, hugePageName, sysfs.HugePagesNrFile)
+	return self.hugePagesNr[hugePageFile], self.hugePagesNrErr
 }
 
 func (self *FakeSysFs) GetBlockDevices() ([]os.FileInfo, error) {
@@ -161,8 +165,24 @@ func (self *FakeSysFs) SetCPUsPaths(paths map[string][]string, err error) {
 	self.cpuPathErr = err
 }
 
-func (self *FakeSysFs) SetCoreThreads(coreThread map[string][]byte) {
+func (self *FakeSysFs) SetCoreThreads(coreThread map[string][]byte, err error) {
 	self.coreThread = coreThread
+	self.coreIDErr = err
+}
+
+func (self *FakeSysFs) SetMemory(memTotal []byte, err error) {
+	self.memTotal = memTotal
+	self.memErr = err
+}
+
+func (self *FakeSysFs) SetHugePages(hugePages []os.FileInfo, err error) {
+	self.hugePages = hugePages
+	self.hugePagesErr = err
+}
+
+func (self *FakeSysFs) SetHugePagesNr(hugePagesNr  map[string][]byte, err error) {
+	self.hugePagesNr = hugePagesNr
+	self.hugePagesNrErr = err
 }
 
 func (self *FakeSysFs) SetEntryName(name string) {

@@ -35,7 +35,7 @@ const (
 
 	hugePagesDirName = "hugepages"
 	coreIDFilePath   = "/topology/core_id"
-	hugePagesNrFile  = "nr_hugepages"
+	HugePagesNrFile  = "nr_hugepages"
 	meminfoFile      = "meminfo"
 
 	cpuDirPattern  = "cpu*[0-9]"
@@ -128,8 +128,9 @@ func (self *realSysFs) GetHugePagesInfo(hugePagesDirectory string) ([]os.FileInf
 	return ioutil.ReadDir(hugePagesDirectory)
 }
 
-func (self *realSysFs) GetHugePagesNr(nodeDir string, hugePageName string) ([]byte, error) {
-	hugePageFile := fmt.Sprintf("%s/%s/%s/%s", nodeDir, hugePagesDirName, hugePageName, hugePagesNrFile)
+func (self *realSysFs) GetHugePagesNr(hugepagesDirectory string, hugePageName string) ([]byte, error) {
+	hugePageFile := fmt.Sprintf("%s%s/%s", hugepagesDirectory, hugePageName, HugePagesNrFile)
+	fmt.Println(hugePageFile)
 	return ioutil.ReadFile(hugePageFile)
 }
 
