@@ -55,18 +55,18 @@ type CacheInfo struct {
 
 // Abstracts the lowest level calls to sysfs.
 type SysFs interface {
+    // Get NUMA nodes paths
 	GetNodesPaths() ([]string, error)
-
+    // Get paths to CPU assigned for specified NUMA node
 	GetCPUsPaths(nodePath string) ([]string, error)
-
+    // Get physical core id for specified CPU
 	GetCoreID(coreIDFilePath string) ([]byte, error)
-
+    // Get total memory for specified NUMA node
 	GetMemInfo(nodeDir string) ([]byte, error)
-
-	GetHugePagesInfo(nodePath string) ([]os.FileInfo, error)
-
-	GetHugePagesNr(nodeDir string, hugePageName string) ([]byte, error)
-
+    // Get hugepages from specified directory
+	GetHugePagesInfo(hugePagesDirectory string) ([]os.FileInfo, error)
+    // Get hugepage_nr from specified directory
+	GetHugePagesNr(hugePagesDirectory string, hugePageName string) ([]byte, error)
 	// Get directory information for available block devices.
 	GetBlockDevices() ([]os.FileInfo, error)
 	// Get Size of a given block device.

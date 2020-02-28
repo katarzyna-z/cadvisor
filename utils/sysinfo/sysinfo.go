@@ -339,7 +339,7 @@ func getCoresInfo(sysFs sysfs.SysFs, nodeDir string) ([]info.Core, int, error) {
 	return cores, len(cpuDirs), nil
 }
 
-// GetCacheInfo return information about cache for provided cpu thread
+// GetCacheInfo return information about a cache accessible from the given cpu thread
 func GetCacheInfo(sysFs sysfs.SysFs, id int) ([]sysfs.CacheInfo, error) {
 	caches, err := sysFs.GetCaches(id)
 	if err != nil {
