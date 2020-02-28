@@ -187,6 +187,7 @@ func GetHugePagesInfo(sysFs sysfs.SysFs, hugepagesDirectory string) ([]info.Huge
 	return hugePagesInfo, nil
 }
 
+// GetNodesInfo returns information about NUMA nodes and their topolog
 func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 	nodes := []info.Node{}
 	allLogicalCoresCount := 0
@@ -233,6 +234,7 @@ func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 	return nodes, allLogicalCoresCount, err
 }
 
+// addCacheInfo adds information about cache for NUMA node
 func addCacheInfo(sysFs sysfs.SysFs, node *info.Node) error {
 	for coreID, core := range node.Cores {
 		threadID := core.Threads[0] //get any thread for core
@@ -271,6 +273,7 @@ func addCacheInfo(sysFs sysfs.SysFs, node *info.Node) error {
 	return nil
 }
 
+// getNodeMemInfo returns information about total memory for NUMA node
 func getNodeMemInfo(sysFs sysfs.SysFs, nodeDir string) (uint64, error) {
 	rawMem, err := sysFs.GetMemInfo(nodeDir)
 	if err != nil {
@@ -290,6 +293,7 @@ func getNodeMemInfo(sysFs sysfs.SysFs, nodeDir string) (uint64, error) {
 	return uint64(memory), nil
 }
 
+// getCoresInfo retruns infromation about physical and logical cores assigned to NUMA node
 func getCoresInfo(sysFs sysfs.SysFs, nodeDir string) ([]info.Core, int, error) {
 	cpuDirs, err := sysFs.GetCPUsPaths(nodeDir)
 	if err != nil {
@@ -335,6 +339,7 @@ func getCoresInfo(sysFs sysfs.SysFs, nodeDir string) ([]info.Core, int, error) {
 	return cores, len(cpuDirs), nil
 }
 
+// GetCacheInfo return information about cache for provided cpu thread
 func GetCacheInfo(sysFs sysfs.SysFs, id int) ([]sysfs.CacheInfo, error) {
 	caches, err := sysFs.GetCaches(id)
 	if err != nil {

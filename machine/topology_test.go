@@ -88,10 +88,10 @@ func TestTopology(t *testing.T) {
     sysFs.SetHugePages(hugePages, nil)
 
     hugePageNr := map[string][]byte{
-		"/fakeSysfs/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages":    []byte("1\n"),
-		"/fakeSysfs/devices/system/node/node0/hugepages/hugepages-1048576kB/nr_hugepages": []byte("1\n"),
-		"/fakeSysfs/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages":    []byte("1\n"),
-		"/fakeSysfs/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages": []byte("1\n"),
+		"/fakeSysfs/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages":    []byte("1"),
+		"/fakeSysfs/devices/system/node/node0/hugepages/hugepages-1048576kB/nr_hugepages": []byte("1"),
+		"/fakeSysfs/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages":    []byte("1"),
+		"/fakeSysfs/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages": []byte("1"),
 	}
     sysFs.SetHugePagesNr(hugePageNr, nil)
 
