@@ -31,7 +31,6 @@ const (
 	dmiDir       = "/sys/class/dmi"
 	ppcDevTree   = "/proc/device-tree"
 	s390xDevTree = "/etc" // s390/s390x changes
-	nodeDir      = "/sys/devices/system/node/"
 
 	hugePagesDirName = "hugepages"
 	coreIDFilePath   = "/topology/core_id"
@@ -42,6 +41,10 @@ const (
 
 	//HugePagesNrFile name of nr_hugepages file in sysfs
 	HugePagesNrFile = "nr_hugepages"
+)
+
+var (
+	nodeDir = "/sys/devices/system/node/"
 )
 
 type CacheInfo struct {

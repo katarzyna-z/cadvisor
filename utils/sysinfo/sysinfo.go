@@ -200,11 +200,6 @@ func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 		}
 		return nil, 0, err
 	}
-	//BELOW does not make sense!!!! - REMOVE COMMENTED CODE AFTER REVIEW!!!
-	// 	if err != nil || len(nodesDirs) {
-	//         // Some VMs don't fill topology data. Export single package.
-	//         //nodesDirs = []string{mt.Sprintf("/sys/devices/system/node/node%d", 0)}
-	// 	}
 
 	for _, nodeDir := range nodesDirs {
 		id, err := getMatchedInt(nodeDirRegExp, nodeDir)
