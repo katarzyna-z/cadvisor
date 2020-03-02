@@ -193,7 +193,11 @@ func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 	allLogicalCoresCount := 0
 
 	nodesDirs, err := sysFs.GetNodesPaths()
-	if err != nil {
+	if err != nil || len(nodesDirs) == 0 {
+		if len(nodesDirs) == 0 && err == nil {
+			//sysFs.GetNodesPaths uses filePath.Glob which does not return any error if pattern does not match anything
+			err = fmt.Errorf("Any path to specific node is not found")
+		}
 		return nil, 0, err
 	}
 	//BELOW does not make sense!!!! - REMOVE COMMENTED CODE AFTER REVIEW!!!
@@ -296,8 +300,8 @@ func getNodeMemInfo(sysFs sysfs.SysFs, nodeDir string) (uint64, error) {
 // getCoresInfo retruns infromation about physical and logical cores assigned to NUMA node
 func getCoresInfo(sysFs sysfs.SysFs, nodeDir string) ([]info.Core, int, error) {
 	cpuDirs, err := sysFs.GetCPUsPaths(nodeDir)
-	if err != nil {
-		klog.Warningf("Found node without any CPU, nodeDir: %s", nodeDir)
+	if err != nil || len(cpuDirs) == 0 {
+		klog.Warningf("Found node without any CPU, nodeDir: %s, number of cpuDirs %d, err: %v", nodeDir, len(cpuDirs), err)
 		return nil, 0, nil
 	}
 

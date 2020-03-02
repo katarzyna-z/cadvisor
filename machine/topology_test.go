@@ -96,10 +96,7 @@ func TestTopology(t *testing.T) {
 	sysFs.SetHugePagesNr(hugePageNr, nil)
 
 	topology, numCores, err := GetTopology(sysFs)
-
-	if err != nil {
-		t.Errorf("failed to get topology  %v", err)
-	}
+	assert.Nil(t, err)
 
 	if numCores != 12 {
 		t.Errorf("Expected 12 cores, found %d", numCores)
@@ -137,9 +134,7 @@ func TestTopology(t *testing.T) {
 
 func TestTopologyEmptySysFs(t *testing.T) {
 	_, _, err := GetTopology(&fakesysfs.FakeSysFs{})
-	if err == nil {
-		t.Errorf("Expected empty sysfs to fail.")
-	}
+	assert.NotNil(t, err)
 }
 
 func TestTopologyWithNodesWithoutCPU(t *testing.T) {
@@ -173,11 +168,9 @@ func TestTopologyWithNodesWithoutCPU(t *testing.T) {
 	assert.Equal(t, 0, numCores)
 
 	topologyJSON, err := json.Marshal(topology)
-	if err != nil {
-		t.Errorf("failed to marsha topology, %v", err)
-	}
-	expectedTopology := []byte(
-		`[
+	assert.Nil(t, err)
+
+	expectedTopology := `[
      {
       "caches": null,
       "cores": null,
@@ -211,6 +204,6 @@ func TestTopologyWithNodesWithoutCPU(t *testing.T) {
       "node_id": 1
      }
     ]
-    `)
-	assert.JSONEq(t, string(expectedTopology), string(topologyJSON))
+    `
+	assert.JSONEq(t, expectedTopology, string(topologyJSON))
 }

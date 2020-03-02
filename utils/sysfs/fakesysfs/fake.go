@@ -75,16 +75,10 @@ type FakeSysFs struct {
 }
 
 func (self *FakeSysFs) GetNodesPaths() ([]string, error) {
-	if len(self.nodesPaths) == 0 {
-		return nil, fmt.Errorf("Any path to specific node is not found, nodeDir: %s", self.nodesPaths)
-	}
 	return self.nodesPaths, self.nodePathErr
 }
 
 func (self *FakeSysFs) GetCPUsPaths(nodePath string) ([]string, error) {
-	if len(self.cpusPaths[nodePath]) == 0 {
-		return nil, fmt.Errorf("Any path to specific CPU is not found for this node, nodePath: %s", nodePath)
-	}
 	return self.cpusPaths[nodePath], self.cpuPathErr
 }
 

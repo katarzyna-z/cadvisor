@@ -100,20 +100,12 @@ func NewRealSysFs() SysFs {
 
 func (self *realSysFs) GetNodesPaths() ([]string, error) {
 	pathPattern := fmt.Sprintf("%s%s", nodeDir, nodeDirPattern)
-	nodePaths, err := filepath.Glob(pathPattern)
-	if len(nodePaths) == 0 {
-		return nil, fmt.Errorf("Any path to specific node is not found, nodeDir: %s", nodeDir)
-	}
-	return nodePaths, err
+	return filepath.Glob(pathPattern)
 }
 
 func (self *realSysFs) GetCPUsPaths(nodePath string) ([]string, error) {
 	pathPattern := fmt.Sprintf("%s/%s", nodePath, cpuDirPattern)
-	cpuPaths, err := filepath.Glob(pathPattern)
-	if len(cpuPaths) == 0 {
-		return nil, fmt.Errorf("Any path to specific CPU is not found for this node, nodePath: %s", nodePath)
-	}
-	return cpuPaths, err
+	return filepath.Glob(pathPattern)
 }
 
 func (self *realSysFs) GetCoreID(cpuPath string) ([]byte, error) {
