@@ -31,6 +31,7 @@ import (
 	"github.com/google/cadvisor/utils/sysinfo"
 
 	"golang.org/x/sys/unix"
+	"k8s.io/klog"
 )
 
 var (
@@ -42,6 +43,7 @@ var (
 	cpuClockSpeedMHz     = regexp.MustCompile(`(?:cpu MHz|clock)\s*:\s*([0-9]+\.[0-9]+)(?:MHz)?`)
 	memoryCapacityRegexp = regexp.MustCompile(`MemTotal:\s*([0-9]+) kB`)
 	swapCapacityRegexp   = regexp.MustCompile(`SwapTotal:\s*([0-9]+) kB`)
+	machineArch = getMachineArch()
 )
 
 const maxFreqFile = "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq"
@@ -150,59 +152,39 @@ func extractValue(s string, r *regexp.Regexp) (bool, int, error) {
 }
 
 // s390/s390x changes
-func getMachineArch() (string, error) {
+func getMachineArch() string {
 	uname := unix.Utsname{}
 	err := unix.Uname(&uname)
 	if err != nil {
-		return "", err
+		klog.Errorf("Cannot get machine architecture, err: %v", err)
+		return ""
 	}
-
-	return string(uname.Machine[:]), nil
+	return string(uname.Machine[:])
 }
 
 // arm32 chanes
 func isArm32() bool {
-	arch, err := getMachineArch()
-	if err == nil {
-		return strings.Contains(arch, "arm")
-	}
-	return false
+	return strings.Contains(machineArch, "arm")
 }
 
 // aarch64 changes
 func isAArch64() bool {
-	arch, err := getMachineArch()
-	if err == nil {
-		return strings.Contains(arch, "aarch64")
-	}
-	return false
+	return strings.Contains(machineArch, "aarch64")
 }
 
 // s390/s390x changes
 func isSystemZ() bool {
-	arch, err := getMachineArch()
-	if err == nil {
-		return strings.Contains(arch, "390")
-	}
-	return false
+	return strings.Contains(machineArch, "390")
 }
 
 // riscv64 changes
 func isRiscv64() bool {
-	arch, err := getMachineArch()
-	if err == nil {
-		return strings.Contains(arch, "riscv64")
-	}
-	return false
+	return strings.Contains(machineArch, "riscv64")
 }
 
 // mips64 changes
 func isMips64() bool {
-	arch, err := getMachineArch()
-	if err == nil {
-		return strings.Contains(arch, "mips64")
-	}
-	return false
+	return strings.Contains(machineArch, "mips64")
 }
 
 // s390/s390x changes

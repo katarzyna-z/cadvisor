@@ -27,6 +27,7 @@ import (
 )
 
 func TestTopology(t *testing.T) {
+	machineArch = "" // overwrite global variable
 	sysFs := &fakesysfs.FakeSysFs{}
 	c := sysfs.CacheInfo{
 		Size:  32 * 1024,
@@ -133,11 +134,13 @@ func TestTopology(t *testing.T) {
 }
 
 func TestTopologyEmptySysFs(t *testing.T) {
+	machineArch = "" // overwrite global variable
 	_, _, err := GetTopology(&fakesysfs.FakeSysFs{})
 	assert.NotNil(t, err)
 }
 
 func TestTopologyWithNodesWithoutCPU(t *testing.T) {
+	machineArch = "" // overwrite global variable
 	sysFs := &fakesysfs.FakeSysFs{}
 	nodesPaths := []string{
 		"/fakeSysfs/devices/system/node/node0",
@@ -206,4 +209,12 @@ func TestTopologyWithNodesWithoutCPU(t *testing.T) {
     ]
     `
 	assert.JSONEq(t, expectedTopology, string(topologyJSON))
+}
+
+func TestTopologyOnSystemZ(t *testing.T) {
+	machineArch = "s390" // overwrite global variable
+	nodes, cores, err := GetTopology(&fakesysfs.FakeSysFs{})
+	assert.Nil(t, err)
+	assert.Nil(t, nodes)
+	assert.NotNil(t, cores)
 }
