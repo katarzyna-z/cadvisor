@@ -78,7 +78,7 @@ func TestTopology(t *testing.T) {
 	}
 	sysFs.SetCoreThreads(coreThread, nil)
 
-	memTotal := []byte("Node 0 MemTotal:       32817192 kB")
+	memTotal := []byte("MemTotal:       32817192 kB")
 	sysFs.SetMemory(memTotal, nil)
 
 	hugePages := []os.FileInfo{
