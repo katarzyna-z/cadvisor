@@ -22,6 +22,13 @@ import (
 	"github.com/google/cadvisor/utils/sysfs/fakesysfs"
 )
 
+
+func TestGetHugePagesInfo(t *testing.T) {
+
+
+}
+
+
 func TestGetBlockDeviceInfo(t *testing.T) {
 	fakeSys := fakesysfs.FakeSysFs{}
 	disks, err := GetBlockDeviceInfo(&fakeSys)

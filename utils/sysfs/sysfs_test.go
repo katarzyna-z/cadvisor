@@ -28,7 +28,7 @@ func TestGetNodes(t *testing.T) {
 	//overwrite global variable
 	nodeDir = "./testdata/"
 
-	sysFs := new(realSysFs)
+	sysFs := NewRealSysFs()
 	nodesDirs, err := sysFs.GetNodesPaths()
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(nodesDirs))
@@ -40,14 +40,14 @@ func TestGetNodesWithNonExistingDir(t *testing.T) {
 	//overwrite global variable
 	nodeDir = "./testdata/NonExistingDir/"
 
-	sysFs := new(realSysFs)
+	sysFs := NewRealSysFs()
 	nodesDirs, err := sysFs.GetNodesPaths()
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(nodesDirs))
 }
 
 func TestGetCPUsPaths(t *testing.T) {
-	sysFs := new(realSysFs)
+	sysFs := NewRealSysFs()
 	cpuDirs, err := sysFs.GetCPUsPaths("./testdata/node0")
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(cpuDirs))
@@ -56,14 +56,14 @@ func TestGetCPUsPaths(t *testing.T) {
 }
 
 func TestGetCPUsPathsFromNodeWithoutCPU(t *testing.T) {
-	sysFs := new(realSysFs)
+	sysFs := NewRealSysFs()
 	cpuDirs, err := sysFs.GetCPUsPaths("./testdata/node1")
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(cpuDirs))
 }
 
 func TestGetCoreID(t *testing.T) {
-	sysFs := new(realSysFs)
+	sysFs := NewRealSysFs()
 	rawCoreID, err := sysFs.GetCoreID("./testdata/node0/cpu0")
 	assert.Nil(t, err)
 
@@ -73,28 +73,28 @@ func TestGetCoreID(t *testing.T) {
 }
 
 func TestGetCoreIDWhenFileIsMissing(t *testing.T) {
-	sysFs := new(realSysFs)
+	sysFs := NewRealSysFs()
 	rawCoreID, err := sysFs.GetCoreID("./testdata/node0/cpu1")
 	assert.NotNil(t, err)
 	assert.Equal(t, []byte(nil), rawCoreID)
 }
 
 func TestGetMemInfo(t *testing.T) {
-	sysFs := new(realSysFs)
+	sysFs := NewRealSysFs()
 	memInfo, err := sysFs.GetMemInfo("./testdata/node0")
 	assert.Nil(t, err)
-	assert.Equal(t, []byte(`Node 0 MemTotal:       32817192 kB`), memInfo)
+	assert.Equal(t, "Node 0 MemTotal:       32817192 kB", strings.TrimSpace(string(memInfo)))
 }
 
 func TestGetMemInfoWhenFileIsMissing(t *testing.T) {
-	sysFs := new(realSysFs)
+	sysFs := NewRealSysFs()
 	memInfo, err := sysFs.GetMemInfo("./testdata/node1")
 	assert.NotNil(t, err)
 	assert.Equal(t, []byte(nil), memInfo)
 }
 
 func TestGetHugePagesInfo(t *testing.T) {
-	sysFs := new(realSysFs)
+	sysFs := NewRealSysFs()
 	hugePages, err := sysFs.GetHugePagesInfo("./testdata/node0/hugepages")
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(hugePages))
@@ -106,14 +106,14 @@ func TestGetHugePagesInfo(t *testing.T) {
 }
 
 func TestGetHugePagesInfoWhenDirIsMissing(t *testing.T) {
-	sysFs := new(realSysFs)
+	sysFs := NewRealSysFs()
 	hugePages, err := sysFs.GetHugePagesInfo("./testdata/node1/hugepages")
 	assert.NotNil(t, err)
 	assert.Equal(t, []os.FileInfo([]os.FileInfo(nil)), hugePages)
 }
 
 func TestGetHugePagesNr(t *testing.T) {
-	sysFs := new(realSysFs)
+	sysFs := NewRealSysFs()
 	rawHugePageNr, err := sysFs.GetHugePagesNr("./testdata/node0/hugepages/", "hugepages-1048576kB")
 	assert.Nil(t, err)
 
@@ -123,7 +123,7 @@ func TestGetHugePagesNr(t *testing.T) {
 }
 
 func TestGetHugePagesNrWhenFileIsMissing(t *testing.T) {
-	sysFs := new(realSysFs)
+	sysFs := NewRealSysFs()
 	rawHugePageNr, err := sysFs.GetHugePagesNr("./testdata/node1/hugepages/", "hugepages-1048576kB")
 	assert.NotNil(t, err)
 	assert.Equal(t, []byte(nil), rawHugePageNr)
