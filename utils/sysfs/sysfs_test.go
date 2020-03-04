@@ -16,10 +16,8 @@ package sysfs
 
 import (
 	"testing"
-	//"path/filepath"
 	"strconv"
 	"strings"
-	//"fmt"
 	"github.com/stretchr/testify/assert"
 	"os"
 )
