@@ -37,7 +37,7 @@ require (
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/groupcache v0.0.0-20191227052852-215e87163ea7 // indirect
 	github.com/golang/snappy v0.0.0-20150730031844-723cc1e459b8 // indirect
-	github.com/google/go-cmp v0.3.1
+	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/gotestyourself/gotestyourself v2.2.0+incompatible // indirect
