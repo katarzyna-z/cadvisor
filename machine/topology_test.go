@@ -98,10 +98,8 @@ func TestTopology(t *testing.T) {
 
 	topology, numCores, err := GetTopology(sysFs)
 	assert.Nil(t, err)
+	assert.Equal(t, 12, numCores)
 
-	if numCores != 12 {
-		t.Errorf("Expected 12 cores, found %d", numCores)
-	}
 	expected_topology := []info.Node{}
 	numNodes := 2
 	numCoresPerNode := 3
@@ -128,9 +126,7 @@ func TestTopology(t *testing.T) {
 		expected_topology = append(expected_topology, node)
 	}
 
-	if !reflect.DeepEqual(topology, expected_topology) {
-		t.Errorf("Expected topology %+v, got %+v", expected_topology, topology)
-	}
+	assert.NotNil(t, reflect.DeepEqual(topology, expected_topology))
 }
 
 func TestTopologyEmptySysFs(t *testing.T) {
