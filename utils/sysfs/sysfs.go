@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -30,6 +31,20 @@ const (
 	dmiDir       = "/sys/class/dmi"
 	ppcDevTree   = "/proc/device-tree"
 	s390xDevTree = "/etc" // s390/s390x changes
+
+	hugePagesDirName = "hugepages"
+	coreIDFilePath   = "/topology/core_id"
+	meminfoFile      = "meminfo"
+
+	cpuDirPattern  = "cpu*[0-9]"
+	nodeDirPattern = "node*[0-9]"
+
+	//HugePagesNrFile name of nr_hugepages file in sysfs
+	HugePagesNrFile = "nr_hugepages"
+)
+
+var (
+	nodeDir = "/sys/devices/system/node/"
 )
 
 type CacheInfo struct {
@@ -45,6 +60,18 @@ type CacheInfo struct {
 
 // Abstracts the lowest level calls to sysfs.
 type SysFs interface {
+	// Get NUMA nodes paths
+	GetNodesPaths() ([]string, error)
+	// Get paths to CPU assigned for specified NUMA node
+	GetCPUsPaths(nodePath string) ([]string, error)
+	// Get physical core id for specified CPU
+	GetCoreID(coreIDFilePath string) ([]byte, error)
+	// Get total memory for specified NUMA node
+	GetMemInfo(nodeDir string) ([]byte, error)
+	// Get hugepages from specified directory
+	GetHugePagesInfo(hugePagesDirectory string) ([]os.FileInfo, error)
+	// Get hugepage_nr from specified directory
+	GetHugePagesNr(hugePagesDirectory string, hugePageName string) ([]byte, error)
 	// Get directory information for available block devices.
 	GetBlockDevices() ([]os.FileInfo, error)
 	// Get Size of a given block device.
@@ -72,6 +99,35 @@ type realSysFs struct{}
 
 func NewRealSysFs() SysFs {
 	return &realSysFs{}
+}
+
+func (self *realSysFs) GetNodesPaths() ([]string, error) {
+	pathPattern := fmt.Sprintf("%s%s", nodeDir, nodeDirPattern)
+	return filepath.Glob(pathPattern)
+}
+
+func (self *realSysFs) GetCPUsPaths(nodePath string) ([]string, error) {
+	pathPattern := fmt.Sprintf("%s/%s", nodePath, cpuDirPattern)
+	return filepath.Glob(pathPattern)
+}
+
+func (self *realSysFs) GetCoreID(cpuPath string) ([]byte, error) {
+	coreIDFilePath := fmt.Sprintf("%s%s", cpuPath, coreIDFilePath)
+	return ioutil.ReadFile(coreIDFilePath)
+}
+
+func (self *realSysFs) GetMemInfo(nodePath string) ([]byte, error) {
+	meminfo := fmt.Sprintf("%s/%s", nodePath, meminfoFile)
+	return ioutil.ReadFile(meminfo)
+}
+
+func (self *realSysFs) GetHugePagesInfo(hugePagesDirectory string) ([]os.FileInfo, error) {
+	return ioutil.ReadDir(hugePagesDirectory)
+}
+
+func (self *realSysFs) GetHugePagesNr(hugepagesDirectory string, hugePageName string) ([]byte, error) {
+	hugePageFile := fmt.Sprintf("%s%s/%s", hugepagesDirectory, hugePageName, HugePagesNrFile)
+	return ioutil.ReadFile(hugePageFile)
 }
 
 func (self *realSysFs) GetBlockDevices() ([]os.FileInfo, error) {
