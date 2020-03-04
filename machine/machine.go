@@ -151,7 +151,6 @@ func extractValue(s string, r *regexp.Regexp) (bool, int, error) {
 	return false, -1, nil
 }
 
-// s390/s390x changes
 func getMachineArch() string {
 	uname := unix.Utsname{}
 	err := unix.Uname(&uname)
@@ -162,7 +161,7 @@ func getMachineArch() string {
 	return string(uname.Machine[:])
 }
 
-// arm32 chanes
+// arm32 changes
 func isArm32() bool {
 	return strings.Contains(machineArch, "arm")
 }
