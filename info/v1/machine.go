@@ -226,6 +226,11 @@ type NVMInfo struct {
 	AvgPowerBudget uint `json:"avg_power_budget"`
 }
 
+type NVMInfo struct {
+	// Average power budget for NVM devices configured in BIOS.
+	AvgPowerBudget uint `json:"avg_power_budget"`
+}
+
 type VersionInfo struct {
 	// Kernel version.
 	KernelVersion string `json:"kernel_version"`
