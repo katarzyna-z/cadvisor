@@ -25,27 +25,6 @@ import (
 	"k8s.io/klog"
 )
 
-// infoProvider will usually be manager.Manager, but can be swapped out for testing.
-type infoProvider interface {
-	// SubcontainersInfo provides information about all subcontainers of the
-	// specified container including itself.
-	SubcontainersInfo(containerName string, query *info.ContainerInfoRequest) ([]*info.ContainerInfo, error)
-	// GetVersionInfo provides information about the version.
-	GetVersionInfo() (*info.VersionInfo, error)
-	// GetMachineInfo provides information about the machine.
-	GetMachineInfo() (*info.MachineInfo, error)
-}
-
-// metricValue describes a single metric value for a given set of label values
-// within a parent containerMetric.
-type metricValue struct {
-	value     float64
-	labels    []string
-	timestamp time.Time
-}
-
-type metricValues []metricValue
-
 // asFloat64 converts a uint64 into a float64.
 func asFloat64(v uint64) float64 { return float64(v) }
 

@@ -57,6 +57,7 @@ var httpDigestFile = flag.String("http_digest_file", "", "HTTP digest file for t
 var httpDigestRealm = flag.String("http_digest_realm", "localhost", "HTTP digest file for the web UI")
 
 var prometheusEndpoint = flag.String("prometheus_endpoint", "/metrics", "Endpoint to expose Prometheus metrics on")
+var prometheusMachineEndpoint = flag.String("prometheus_machine_endpoint", "/machine_metrics", "Endpoint to expose machine Prometheus metrics on")
 
 var maxHousekeepingInterval = flag.Duration("max_housekeeping_interval", 60*time.Second, "Largest interval to allow between container housekeepings")
 var allowDynamicHousekeeping = flag.Bool("allow_dynamic_housekeeping", true, "Whether to allow the housekeeping interval to be dynamic")
@@ -157,9 +158,10 @@ func main() {
 
 	collectorHttpClient := createCollectorHttpClient(*collectorCert, *collectorKey)
 
-	containerManager, err := manager.New(memoryStorage, sysFs, *maxHousekeepingInterval, *allowDynamicHousekeeping, includedMetrics, &collectorHttpClient, strings.Split(*rawCgroupPrefixWhiteList, ","))
+	// Create a new manager for containers and machine
+	resourceManager, err := manager.New(memoryStorage, sysFs, *maxHousekeepingInterval, *allowDynamicHousekeeping, includedMetrics, &collectorHttpClient, strings.Split(*rawCgroupPrefixWhiteList, ","))
 	if err != nil {
-		klog.Fatalf("Failed to create a Container Manager: %s", err)
+		klog.Fatalf("Failed to create a manager: %s", err)
 	}
 
 	mux := http.NewServeMux()
@@ -172,7 +174,7 @@ func main() {
 	}
 
 	// Register all HTTP handlers.
-	err = cadvisorhttp.RegisterHandlers(mux, containerManager, *httpAuthFile, *httpAuthRealm, *httpDigestFile, *httpDigestRealm, *urlBasePrefix)
+	err = cadvisorhttp.RegisterHandlers(mux, resourceManager, *httpAuthFile, *httpAuthRealm, *httpDigestFile, *httpDigestRealm, *urlBasePrefix)
 	if err != nil {
 		klog.Fatalf("Failed to register HTTP handlers: %v", err)
 	}
@@ -183,15 +185,19 @@ func main() {
 		containerLabelFunc = metrics.BaseContainerLabels(whitelistedLabels)
 	}
 
-	cadvisorhttp.RegisterPrometheusHandler(mux, containerManager, *prometheusEndpoint, containerLabelFunc, includedMetrics)
+	// Register standard Prometheus collector to gather information about containers, golaGo runtime and processes
+	cadvisorhttp.RegisterPrometheusHandler(mux, resourceManager, *prometheusEndpoint, containerLabelFunc, includedMetrics)
+
+	// Register machine Prometheus collector
+	cadvisorhttp.RegisterPrometheusMachineHandler(mux, resourceManager, *prometheusMachineEndpoint)
 
 	// Start the manager.
-	if err := containerManager.Start(); err != nil {
-		klog.Fatalf("Failed to start container manager: %v", err)
+	if err := resourceManager.Start(); err != nil {
+		klog.Fatalf("Failed to start manager: %v", err)
 	}
 
 	// Install signal handler.
-	installSignalHandler(containerManager)
+	installSignalHandler(resourceManager)
 
 	klog.V(1).Infof("Starting cAdvisor version: %s-%s on port %d", version.Info["version"], version.Info["revision"], *argPort)
 
