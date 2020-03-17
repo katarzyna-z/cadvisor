@@ -81,19 +81,19 @@ func GetNVMInfo() (info.NVMInfo, error) {
 	cErr := C.nvm_init()
 	if cErr != C.NVM_SUCCESS {
 		klog.Warningf("libipmctl initialization failed with status %d", cErr)
-		return nil, fmt.Errorf("libipmctl initialization failed with status %d", cErr)
+		return info.NVMInfo{}, fmt.Errorf("libipmctl initialization failed with status %d", cErr)
 	}
 	defer C.nvm_uninit()
 
-	var err Error
+	var err error
 	nvmInfo.MemoryModeCapcity, err = getNVMMemoryModeCapcity()
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get NVM capacity in bytes for memory mode, err: %s", err)
+		return info.NVMInfo{}, fmt.Errorf("Unable to get NVM capacity in bytes for memory mode, err: %s", err)
 	}
 
 	nvmInfo.AvgPowerBudget, err = getNVMAvgPowerBudget()
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get NVM average power budget, err: %s", err)
+		return info.NVMInfo{}, fmt.Errorf("Unable to get NVM average power budget, err: %s", err)
 	}
 	return nvmInfo, nil
 }
