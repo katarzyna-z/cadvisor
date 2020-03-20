@@ -43,6 +43,13 @@ func (p testSubcontainersInfoProvider) GetMachineInfo() (*info.MachineInfo, erro
 			"Non-volatile-RAM": {Capacity: 2168421613568, DimmCount: 8},
 			"Unbuffered-DDR4":  {Capacity: 412316860416, DimmCount: 12},
 		},
+		NVMInfo: info.NVMInfo{
+			MemoryModeCapcity:    429496729600,
+			AppDirectModeCapcity: 1735166787584,
+		},
+		MachineID:  "machine-id-test",
+		SystemUUID: "system-uuid-test",
+		BootID:     "boot-id-test",
 	}, nil
 }
 

@@ -19,7 +19,6 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/assert"
@@ -74,27 +73,11 @@ func TestGetMemoryByType(t *testing.T) {
 	machineInfo, err := testSubcontainersInfoProvider{}.GetMachineInfo()
 	assert.Nil(t, err)
 
-	expectedCapacityMetrics := []metricValue{
-		{value: float64(2168421613568), labels: []string{"Non-volatile-RAM"}},
-		{value: float64(412316860416), labels: []string{"Unbuffered-DDR4"}},
-		{value: float64(2168421613568 + 412316860416), labels: []string{memoryByTypeAllType}},
-	}
 	capacityMetrics := getMemoryByType(machineInfo, memoryByTypeDimmCapacityKey)
 	assert.Equal(t, 3, len(capacityMetrics))
-	assert.True(t, metricValueEqual(expectedCapacityMetrics[0], capacityMetrics[0]))
-	assert.True(t, metricValueEqual(expectedCapacityMetrics[1], capacityMetrics[1]))
-	assert.True(t, metricValueEqual(expectedCapacityMetrics[2], capacityMetrics[2]))
 
-	expectedCountMetrics := []metricValue{
-		{value: float64(8), labels: []string{"Non-volatile-RAM"}},
-		{value: float64(12), labels: []string{"Unbuffered-DDR4"}},
-		{value: float64(8 + 12), labels: []string{memoryByTypeAllType}},
-	}
 	countMetrics := getMemoryByType(machineInfo, memoryByTypeDimmCountKey)
 	assert.Equal(t, 3, len(countMetrics))
-	assert.True(t, metricValueEqual(expectedCountMetrics[0], countMetrics[0]))
-	assert.True(t, metricValueEqual(expectedCountMetrics[1], countMetrics[1]))
-	assert.True(t, metricValueEqual(expectedCountMetrics[2], countMetrics[2]))
 }
 
 func TestGetMemoryByTypeWithWrongProperty(t *testing.T) {
@@ -103,10 +86,4 @@ func TestGetMemoryByTypeWithWrongProperty(t *testing.T) {
 
 	metricVals := getMemoryByType(machineInfo, "wrong_property_name")
 	assert.Equal(t, 0, len(metricVals))
-}
-
-func metricValueEqual(firstMetric metricValue, secondMetric metricValue) bool {
-	return firstMetric.value == secondMetric.value &&
-		cmp.Equal(firstMetric.labels, secondMetric.labels) &&
-		cmp.Equal(firstMetric.timestamp, secondMetric.timestamp)
 }
