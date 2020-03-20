@@ -83,7 +83,7 @@ var (
 		container.NetworkAdvancedTcpUsageMetrics: struct{}{},
 		container.ProcessSchedulerMetrics:        struct{}{},
 		container.ProcessMetrics:                 struct{}{},
-		container.HugetlbUsageMetrics:			  struct{}{},
+		container.HugetlbUsageMetrics:            struct{}{},
 	}}
 
 	// List of metrics that can be ignored.
@@ -97,7 +97,7 @@ var (
 		container.PerCpuUsageMetrics:             struct{}{},
 		container.ProcessSchedulerMetrics:        struct{}{},
 		container.ProcessMetrics:                 struct{}{},
-		container.HugetlbUsageMetrics:			  struct{}{},
+		container.HugetlbUsageMetrics:            struct{}{},
 	}
 )
 
@@ -185,10 +185,10 @@ func main() {
 		containerLabelFunc = metrics.BaseContainerLabels(whitelistedLabels)
 	}
 
-	// Register standard Prometheus collector to gather information about containers, golaGo runtime and processes
+	// Register Prometheus collector to gather information about containers, Go runtime and processes
 	cadvisorhttp.RegisterPrometheusHandler(mux, resourceManager, *prometheusEndpoint, containerLabelFunc, includedMetrics)
 
-	// Register machine Prometheus collector
+	// Register Prometheus collector to gather hardware information
 	cadvisorhttp.RegisterPrometheusMachineHandler(mux, resourceManager, *prometheusMachineEndpoint)
 
 	// Start the manager.
