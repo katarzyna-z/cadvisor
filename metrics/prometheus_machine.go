@@ -118,8 +118,8 @@ func NewPrometheusMachineCollector(i infoProvider) *PrometheusMachineCollector {
 				extraLabels: []string{prometheusModeLabelName},
 				getValues: func(machineInfo *info.MachineInfo) metricValues {
 					return metricValues{
-						{value: float64(machineInfo.NVMInfo.MemoryModeCapcity), labels: []string{nvmMemoryMode}},
-						{value: float64(machineInfo.NVMInfo.AppDirectModeCapcity), labels: []string{nvmAppDirectMode}},
+						{value: float64(machineInfo.NVMInfo.MemoryModeCapacity), labels: []string{nvmMemoryMode}},
+						{value: float64(machineInfo.NVMInfo.AppDirectModeCapacity), labels: []string{nvmAppDirectMode}},
 					}
 				},
 			},

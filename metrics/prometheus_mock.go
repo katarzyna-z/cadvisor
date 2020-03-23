@@ -44,8 +44,8 @@ func (p testSubcontainersInfoProvider) GetMachineInfo() (*info.MachineInfo, erro
 			"Unbuffered-DDR4":  {Capacity: 412316860416, DimmCount: 12},
 		},
 		NVMInfo: info.NVMInfo{
-			MemoryModeCapcity:    429496729600,
-			AppDirectModeCapcity: 1735166787584,
+			MemoryModeCapacity:    429496729600,
+			AppDirectModeCapacity: 1735166787584,
 		},
 		MachineID:  "machine-id-test",
 		SystemUUID: "system-uuid-test",
