@@ -1547,11 +1547,7 @@ func NewPrometheusCollector(i infoProvider, f ContainerLabelsFunc, includedMetri
 	return c
 }
 
-var (
-	versionInfoDesc       = prometheus.NewDesc("cadvisor_version_info", "A metric with a constant '1' value labeled by kernel version, OS version, docker version, cadvisor version & cadvisor revision.", []string{"kernelVersion", "osVersion", "dockerVersion", "cadvisorVersion", "cadvisorRevision"}, nil)
-	machineInfoCoresDesc  = prometheus.NewDesc("machine_cpu_cores", "Number of CPU cores on the machine.", nil, nil)
-	machineInfoMemoryDesc = prometheus.NewDesc("machine_memory_bytes", "Amount of memory installed on the machine.", nil, nil)
-)
+var versionInfoDesc = prometheus.NewDesc("cadvisor_version_info", "A metric with a constant '1' value labeled by kernel version, OS version, docker version, cadvisor version & cadvisor revision.", []string{"kernelVersion", "osVersion", "dockerVersion", "cadvisorVersion", "cadvisorRevision"}, nil)
 
 // Describe describes all the metrics ever exported by cadvisor. It
 // implements prometheus.PrometheusCollector.
@@ -1561,15 +1557,12 @@ func (c *PrometheusCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- cm.desc([]string{})
 	}
 	ch <- versionInfoDesc
-	ch <- machineInfoCoresDesc
-	ch <- machineInfoMemoryDesc
 }
 
 // Collect fetches the stats from all containers and delivers them as
 // Prometheus metrics. It implements prometheus.PrometheusCollector.
 func (c *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
 	c.errors.Set(0)
-	c.collectMachineInfo(ch)
 	c.collectVersionInfo(ch)
 	c.collectContainersInfo(ch)
 	c.errors.Collect(ch)
@@ -1735,17 +1728,6 @@ func (c *PrometheusCollector) collectVersionInfo(ch chan<- prometheus.Metric) {
 		return
 	}
 	ch <- prometheus.MustNewConstMetric(versionInfoDesc, prometheus.GaugeValue, 1, []string{versionInfo.KernelVersion, versionInfo.ContainerOsVersion, versionInfo.DockerVersion, versionInfo.CadvisorVersion, versionInfo.CadvisorRevision}...)
-}
-
-func (c *PrometheusCollector) collectMachineInfo(ch chan<- prometheus.Metric) {
-	machineInfo, err := c.infoProvider.GetMachineInfo()
-	if err != nil {
-		c.errors.Set(1)
-		klog.Warningf("Couldn't get machine info: %s", err)
-		return
-	}
-	ch <- prometheus.MustNewConstMetric(machineInfoCoresDesc, prometheus.GaugeValue, float64(machineInfo.NumCores))
-	ch <- prometheus.MustNewConstMetric(machineInfoMemoryDesc, prometheus.GaugeValue, float64(machineInfo.MemoryCapacity))
 }
 
 // Size after which we consider memory to be "unlimited". This is not

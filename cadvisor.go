@@ -57,7 +57,6 @@ var httpDigestFile = flag.String("http_digest_file", "", "HTTP digest file for t
 var httpDigestRealm = flag.String("http_digest_realm", "localhost", "HTTP digest file for the web UI")
 
 var prometheusEndpoint = flag.String("prometheus_endpoint", "/metrics", "Endpoint to expose Prometheus metrics on")
-var prometheusMachineEndpoint = flag.String("prometheus_machine_endpoint", "/machine_metrics", "Endpoint to expose machine Prometheus metrics on")
 
 var maxHousekeepingInterval = flag.Duration("max_housekeeping_interval", 60*time.Second, "Largest interval to allow between container housekeepings")
 var allowDynamicHousekeeping = flag.Bool("allow_dynamic_housekeeping", true, "Whether to allow the housekeeping interval to be dynamic")
@@ -185,11 +184,8 @@ func main() {
 		containerLabelFunc = metrics.BaseContainerLabels(whitelistedLabels)
 	}
 
-	// Register Prometheus collector to gather information about containers, Go runtime and processes
+	// Register Prometheus collector to gather information about containers, Go runtime, processes, and machine
 	cadvisorhttp.RegisterPrometheusHandler(mux, resourceManager, *prometheusEndpoint, containerLabelFunc, includedMetrics)
-
-	// Register Prometheus collector to gather hardware information
-	cadvisorhttp.RegisterPrometheusMachineHandler(mux, resourceManager, *prometheusMachineEndpoint)
 
 	// Start the manager.
 	if err := resourceManager.Start(); err != nil {

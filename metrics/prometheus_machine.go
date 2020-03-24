@@ -64,20 +64,20 @@ func NewPrometheusMachineCollector(i infoProvider) *PrometheusMachineCollector {
 		errors: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: "machine",
 			Name:      "scrape_error",
-			Help:      "1 if there was an error while getting machine metrics, 0 otherwise",
+			Help:      "1 if there was an error while getting machine metrics, 0 otherwise.",
 		}),
 		machineMetrics: []machineMetric{
 			{
 				name:      "machine_cpu_physical_cores",
-				help:      "Number of physical CPU cores",
+				help:      "Number of physical CPU cores.",
 				valueType: prometheus.GaugeValue,
 				getValues: func(machineInfo *info.MachineInfo) metricValues {
 					return metricValues{{value: float64(machineInfo.NumPhysicalCores)}}
 				},
 			},
 			{
-				name:      "machine_cpu_logical_cores",
-				help:      "Number of logical CPU cores",
+				name:      "machine_cpu_cores",
+				help:      "Number of logical CPU cores.",
 				valueType: prometheus.GaugeValue,
 				getValues: func(machineInfo *info.MachineInfo) metricValues {
 					return metricValues{{value: float64(machineInfo.NumCores)}}
@@ -85,15 +85,23 @@ func NewPrometheusMachineCollector(i infoProvider) *PrometheusMachineCollector {
 			},
 			{
 				name:      "machine_cpu_sockets",
-				help:      "Number of CPU sockets",
+				help:      "Number of CPU sockets.",
 				valueType: prometheus.GaugeValue,
 				getValues: func(machineInfo *info.MachineInfo) metricValues {
 					return metricValues{{value: float64(machineInfo.NumSockets)}}
 				},
 			},
 			{
+				name:      "machine_memory_bytes",
+				help:      "Amount of memory installed on the machine.",
+				valueType: prometheus.GaugeValue,
+				getValues: func(machineInfo *info.MachineInfo) metricValues {
+					return metricValues{{value: float64(machineInfo.MemoryCapacity)}}
+				},
+			},
+			{
 				name:        "machine_dimm_count",
-				help:        "Number of RAM DIMM (all types memory modules) value labeled by dimm type",
+				help:        "Number of RAM DIMM (all types memory modules) value labeled by dimm type.",
 				valueType:   prometheus.GaugeValue,
 				extraLabels: []string{prometheusTypeLabelName},
 				condition:   func(machineInfo *info.MachineInfo) bool { return len(machineInfo.MemoryByType) != 0 },
@@ -103,7 +111,7 @@ func NewPrometheusMachineCollector(i infoProvider) *PrometheusMachineCollector {
 			},
 			{
 				name:        "machine_dimm_capacity_bytes",
-				help:        "Total RAM DIMM capacity (all types memory modules) value labeled by dimm type",
+				help:        "Total RAM DIMM capacity (all types memory modules) value labeled by dimm type.",
 				valueType:   prometheus.GaugeValue,
 				extraLabels: []string{prometheusTypeLabelName},
 				condition:   func(machineInfo *info.MachineInfo) bool { return len(machineInfo.MemoryByType) != 0 },
@@ -113,7 +121,7 @@ func NewPrometheusMachineCollector(i infoProvider) *PrometheusMachineCollector {
 			},
 			{
 				name:        "machine_nvm_capacity",
-				help:        "NVM capacity value labeled by NVM mode (memory mode or app direct mode)",
+				help:        "NVM capacity value labeled by NVM mode (memory mode or app direct mode).",
 				valueType:   prometheus.GaugeValue,
 				extraLabels: []string{prometheusModeLabelName},
 				getValues: func(machineInfo *info.MachineInfo) metricValues {
@@ -142,21 +150,7 @@ func (collector *PrometheusMachineCollector) Describe(ch chan<- *prometheus.Desc
 func (collector *PrometheusMachineCollector) Collect(ch chan<- prometheus.Metric) {
 	collector.errors.Set(0)
 	collector.collectMachineInfo(ch)
-	collector.collectVersionInfo(ch)
 	collector.errors.Collect(ch)
-}
-
-func (collector *PrometheusMachineCollector) collectVersionInfo(ch chan<- prometheus.Metric) {
-	versionInfo, err := collector.infoProvider.GetVersionInfo()
-	if err != nil {
-		collector.errors.Set(1)
-		klog.Warningf("Couldn't get version info: %s", err)
-		return
-	}
-	ch <- prometheus.MustNewConstMetric(versionInfoDesc,
-		prometheus.GaugeValue, 1, []string{versionInfo.KernelVersion,
-			versionInfo.ContainerOsVersion, versionInfo.DockerVersion,
-			versionInfo.CadvisorVersion, versionInfo.CadvisorRevision}...)
 }
 
 func (collector *PrometheusMachineCollector) collectMachineInfo(ch chan<- prometheus.Metric) {
