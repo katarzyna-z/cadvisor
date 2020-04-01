@@ -899,6 +899,9 @@ type ContainerStats struct {
 
 	// Statistics originating from perf events
 	PerfStats []PerfStat `json:"perf_stats,omitempty"`
+
+	// Working set size
+	Wss uint64 `json:"wss,omitempty"`
 }
 
 func timeEq(t1, t2 time.Time, tolerance time.Duration) bool {

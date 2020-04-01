@@ -44,10 +44,17 @@ import (
 	"github.com/google/cadvisor/utils/sysfs"
 	"github.com/google/cadvisor/version"
 	"github.com/google/cadvisor/watcher"
+	"github.com/google/cadvisor/wss"
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"k8s.io/klog"
 	"k8s.io/utils/clock"
+)
+
+const (
+	nvidiaMetricsProviderKey = "nvidia"
+	perfMetricsProviderKey   = "perf"
+	wssMetricsProviderKey    = "wss"
 )
 
 var globalHousekeepingInterval = flag.Duration("global_housekeeping_interval", 1*time.Minute, "Interval between global housekeepings")
@@ -56,6 +63,7 @@ var logCadvisorUsage = flag.Bool("log_cadvisor_usage", false, "Whether to log th
 var eventStorageAgeLimit = flag.String("event_storage_age_limit", "default=24h", "Max length of time for which to store events (per type). Value is a comma separated list of key values, where the keys are event types (e.g.: creation, oom) or \"default\" and the value is a duration. Default is applied to all non-specified event types")
 var eventStorageEventLimit = flag.String("event_storage_event_limit", "default=100000", "Max number of events to store (per type). Value is a comma separated list of key values, where the keys are event types (e.g.: creation, oom) or \"default\" and the value is an integer. Default is applied to all non-specified event types")
 var applicationMetricsCountLimit = flag.Int("application_metrics_count_limit", 100, "Max number of application metrics to store (per container)")
+var wssResetInterval = flag.Uint64("wss_reset_interval", 5, "Reset interval for working set size metric, number of measurement cycles after which referenced bytes are cleared")
 
 // The Manager interface defines operations for starting a manager and getting
 // container and machine information.
@@ -190,7 +198,6 @@ func New(memoryCache *memory.InMemoryCache, sysfs sysfs.SysFs, houskeepingConfig
 		containerWatchers:                     []watcher.ContainerWatcher{},
 		eventsChannel:                         eventsChannel,
 		collectorHttpClient:                   collectorHttpClient,
-		nvidiaManager:                         accelerators.NewNvidiaManager(),
 		rawContainerCgroupPathPrefixWhiteList: rawContainerCgroupPathPrefixWhiteList,
 	}
 
@@ -201,7 +208,10 @@ func New(memoryCache *memory.InMemoryCache, sysfs sysfs.SysFs, houskeepingConfig
 	newManager.machineInfo = *machineInfo
 	klog.V(1).Infof("Machine: %+v", newManager.machineInfo)
 
-	newManager.perfManager, err = perf.NewManager(perfEventsFile, machineInfo.NumCores)
+	newManager.metricsManagers = make(map[string]stats.Manager, 3)
+	newManager.metricsManagers[nvidiaMetricsProviderKey] = accelerators.NewNvidiaManager()
+	newManager.metricsManagers[wssMetricsProviderKey] = wss.NewManager(*wssResetInterval, includedMetricsSet.Has(container.WssMetric))
+	newManager.metricsManagers[perfMetricsProviderKey], err = perf.NewManager(perfEventsFile, machineInfo.NumCores)
 	if err != nil {
 		return nil, err
 	}
@@ -244,8 +254,7 @@ type manager struct {
 	containerWatchers        []watcher.ContainerWatcher
 	eventsChannel            chan watcher.ContainerEvent
 	collectorHttpClient      *http.Client
-	nvidiaManager            stats.Manager
-	perfManager              stats.Manager
+	metricsManagers          map[string]stats.Manager
 	// List of raw container cgroup path prefix whitelist.
 	rawContainerCgroupPathPrefixWhiteList []string
 }
@@ -309,8 +318,8 @@ func (self *manager) Start() error {
 }
 
 func (self *manager) Stop() error {
-	defer self.nvidiaManager.Destroy()
-	defer self.destroyPerfCollectors()
+	defer self.destroyMetricsManagers()
+	defer self.destroyCollectors()
 	// Stop and wait on all quit channels.
 	for i, c := range self.quitChannels {
 		// Send the exit signal and wait on the thread to exit (by closing the channel).
@@ -328,9 +337,17 @@ func (self *manager) Stop() error {
 	return nil
 }
 
-func (self *manager) destroyPerfCollectors() {
+func (self *manager) destroyMetricsManagers() {
+	for _, manager := range self.metricsManagers {
+		manager.Destroy()
+	}
+}
+
+func (self *manager) destroyCollectors() {
 	for _, container := range self.containers {
-		container.perfCollector.Destroy()
+		for _, collector := range container.collectors {
+			collector.Destroy()
+		}
 	}
 }
 
@@ -944,7 +961,7 @@ func (m *manager) createContainerLocked(containerName string, watchSource watche
 		if err != nil {
 			klog.Warningf("Error getting devices cgroup path: %v", err)
 		} else {
-			cont.nvidiaCollector, err = m.nvidiaManager.GetCollector(devicesCgroupPath)
+			cont.collectors[nvidiaMetricsProviderKey], err = m.metricsManagers[nvidiaMetricsProviderKey].GetCollector(devicesCgroupPath)
 			if err != nil {
 				klog.V(4).Infof("GPU metrics may be unavailable/incomplete for container %s: %s", cont.info.Name, err)
 			}
@@ -954,9 +971,19 @@ func (m *manager) createContainerLocked(containerName string, watchSource watche
 		if err != nil {
 			klog.Warningf("Error getting perf_event cgroup path: %q", err)
 		} else {
-			cont.perfCollector, err = m.perfManager.GetCollector(perfCgroupPath)
+			cont.collectors[perfMetricsProviderKey], err = m.metricsManagers[perfMetricsProviderKey].GetCollector(perfCgroupPath)
 			if err != nil {
 				klog.Infof("perf_event metrics will not be available for container %s: %s", cont.info.Name, err)
+			}
+		}
+
+		cpuCgroupPath, err := handler.GetCgroupPath("cpu")
+		if err != nil {
+			klog.Warningf("Error getting cpu cgroup path: %q", err)
+		} else {
+			cont.collectors[wssMetricsProviderKey], err = m.metricsManagers[wssMetricsProviderKey].GetCollector(cpuCgroupPath)
+			if err != nil {
+				klog.Infof("wss metric will not be available for container %s: %s", cont.info.Name, err)
 			}
 		}
 	}
