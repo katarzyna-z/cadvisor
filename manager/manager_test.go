@@ -49,6 +49,7 @@ import (
 func createManagerAndAddContainers(
 	memoryCache *memory.InMemoryCache,
 	sysfs *fakesysfs.FakeSysFs,
+	includedMetrics container.MetricSet,
 	containers []string,
 	f func(*containertest.MockContainerHandler),
 	t *testing.T,
@@ -66,7 +67,11 @@ func createManagerAndAddContainers(
 			spec,
 			nil,
 		).Once()
-		cont, err := newContainerData(name, memoryCache, mockHandler, false, &collector.GenericCollectorManager{}, 60*time.Second, true, clock.NewFakeClock(time.Now()))
+		mockHandler.On("GetCgroupPath", "cpu").Return(
+			"testdata/cgroup",
+			nil,
+		)
+		cont, err := newContainerData(name, memoryCache, mockHandler, false, &collector.GenericCollectorManager{}, 60*time.Second, true, includedMetrics, clock.NewFakeClock(time.Now()))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -97,9 +102,30 @@ func expectManagerWithContainers(containers []string, query *info.ContainerInfoR
 
 	memoryCache := memory.New(time.Duration(query.NumStats)*time.Second, nil)
 	sysfs := &fakesysfs.FakeSysFs{}
+
+	includedMetrics := container.MetricSet{
+		container.CpuUsageMetrics:                struct{}{},
+		container.ProcessSchedulerMetrics:        struct{}{},
+		container.PerCpuUsageMetrics:             struct{}{},
+		container.MemoryUsageMetrics:             struct{}{},
+		container.CpuLoadMetrics:                 struct{}{},
+		container.DiskIOMetrics:                  struct{}{},
+		container.AcceleratorUsageMetrics:        struct{}{},
+		container.DiskUsageMetrics:               struct{}{},
+		container.NetworkUsageMetrics:            struct{}{},
+		container.NetworkTcpUsageMetrics:         struct{}{},
+		container.NetworkAdvancedTcpUsageMetrics: struct{}{},
+		container.NetworkUdpUsageMetrics:         struct{}{},
+		container.ProcessMetrics:                 struct{}{},
+		container.AppMetrics:                     struct{}{},
+		container.HugetlbUsageMetrics:            struct{}{},
+		container.WssMetric:                      struct{}{},
+	}
+
 	m := createManagerAndAddContainers(
 		memoryCache,
 		sysfs,
+		includedMetrics,
 		containers,
 		func(h *containertest.MockContainerHandler) {
 			cinfo := infosMap[h.Name]
@@ -127,6 +153,10 @@ func expectManagerWithContainers(containers []string, query *info.ContainerInfoR
 				spec,
 				nil,
 			).Once()
+			h.On("GetCgroupPath", "cpu").Return(
+				"testdata/cgroup",
+				nil,
+			)
 			handlerMap[h.Name] = h
 		},
 		t,
@@ -147,9 +177,29 @@ func expectManagerWithContainersV2(containers []string, query *info.ContainerInf
 
 	memoryCache := memory.New(time.Duration(query.NumStats)*time.Second, nil)
 	sysfs := &fakesysfs.FakeSysFs{}
+	includedMetrics := container.MetricSet{
+		container.CpuUsageMetrics:                struct{}{},
+		container.ProcessSchedulerMetrics:        struct{}{},
+		container.PerCpuUsageMetrics:             struct{}{},
+		container.MemoryUsageMetrics:             struct{}{},
+		container.CpuLoadMetrics:                 struct{}{},
+		container.DiskIOMetrics:                  struct{}{},
+		container.AcceleratorUsageMetrics:        struct{}{},
+		container.DiskUsageMetrics:               struct{}{},
+		container.NetworkUsageMetrics:            struct{}{},
+		container.NetworkTcpUsageMetrics:         struct{}{},
+		container.NetworkAdvancedTcpUsageMetrics: struct{}{},
+		container.NetworkUdpUsageMetrics:         struct{}{},
+		container.ProcessMetrics:                 struct{}{},
+		container.AppMetrics:                     struct{}{},
+		container.HugetlbUsageMetrics:            struct{}{},
+		container.WssMetric:                      struct{}{},
+	}
+
 	m := createManagerAndAddContainers(
 		memoryCache,
 		sysfs,
+		includedMetrics,
 		containers,
 		func(h *containertest.MockContainerHandler) {
 			cinfo := infosMap[h.Name]
@@ -174,6 +224,10 @@ func expectManagerWithContainersV2(containers []string, query *info.ContainerInf
 				spec,
 				nil,
 			).Once()
+			h.On("GetCgroupPath", "cpu").Return(
+				"testdata/cgroup",
+				nil,
+			)
 			handlerMap[h.Name] = h
 		},
 		t,
@@ -276,6 +330,7 @@ func TestGetContainerInfoV2Failure(t *testing.T) {
 	mockErr := fmt.Errorf("intentional GetSpec failure")
 	handlerMap[failing].GetSpec() // Use up default GetSpec call, and replace below
 	handlerMap[failing].On("GetSpec").Return(info.ContainerSpec{}, mockErr)
+	handlerMap[failing].On("GetCgroupPath", "cpu").Return("testdata/cgroup", nil)
 	handlerMap[failing].On("Exists").Return(true)
 	m.containers[namespacedContainerName{Name: failing}].infoLastUpdatedTime = time.Time{} // Force GetSpec.
 

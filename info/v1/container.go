@@ -897,8 +897,13 @@ type ContainerStats struct {
 	// Custom metrics from all collectors
 	CustomMetrics map[string][]MetricVal `json:"custom_metrics,omitempty"`
 
+<<<<<<< 49f40752105634dd3037d9aabde75bf99ef6fc33
 	// Statistics originating from perf events
 	PerfStats []PerfStat `json:"perf_stats,omitempty"`
+=======
+	// Working set size
+	Wss uint64 `json:"wss,omitempty"`
+>>>>>>> First aproach to WSS metric
 }
 
 func timeEq(t1, t2 time.Time, tolerance time.Duration) bool {

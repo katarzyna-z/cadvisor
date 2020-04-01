@@ -37,6 +37,7 @@ import (
 	"github.com/google/cadvisor/stats"
 	"github.com/google/cadvisor/summary"
 	"github.com/google/cadvisor/utils/cpuload"
+	"github.com/google/cadvisor/wss"
 
 	units "github.com/docker/go-units"
 	"k8s.io/klog"
@@ -46,6 +47,7 @@ import (
 // Housekeeping interval.
 var enableLoadReader = flag.Bool("enable_load_reader", false, "Whether to enable cpu load reader")
 var HousekeepingInterval = flag.Duration("housekeeping_interval", 1*time.Second, "Interval between container housekeepings")
+var wssResetInterval = flag.Uint64("wss_reset_interval", 5, "Reset interval for working set size metric, number of measurement cycles after which referenced bytes are cleared")
 
 // cgroup type chosen to fetch the cgroup path of a process.
 // Memory has been chosen, as it is one of the default cgroups that is enabled for most containers.
@@ -94,6 +96,9 @@ type containerData struct {
 
 	// perfCollector updates stats for perf_event cgroup controller.
 	perfCollector stats.Collector
+
+	// wss Provider calculate working set size for the container in measurement cycle
+	wssProvider *wss.Wss
 }
 
 // jitter returns a time.Duration between duration and duration + maxFactor * duration,
@@ -367,7 +372,16 @@ func (c *containerData) GetProcessList(cadvisorContainer string, inHostNamespace
 	return processes, nil
 }
 
-func newContainerData(containerName string, memoryCache *memory.InMemoryCache, handler container.ContainerHandler, logUsage bool, collectorManager collector.CollectorManager, maxHousekeepingInterval time.Duration, allowDynamicHousekeeping bool, clock clock.Clock) (*containerData, error) {
+func newContainerData(
+	containerName string,
+	memoryCache *memory.InMemoryCache,
+	handler container.ContainerHandler,
+	logUsage bool,
+	collectorManager collector.CollectorManager,
+	maxHousekeepingInterval time.Duration,
+	allowDynamicHousekeeping bool,
+	includedMetrics container.MetricSet,
+	clock clock.Clock) (*containerData, error) {
 	if memoryCache == nil {
 		return nil, fmt.Errorf("nil memory storage")
 	}
@@ -418,6 +432,18 @@ func newContainerData(containerName string, memoryCache *memory.InMemoryCache, h
 		klog.V(5).Infof("Failed to create summary reader for %q: %v", ref.Name, err)
 	}
 
+	if includedMetrics.Has(container.WssMetric) {
+		if *wssResetInterval == 0 {
+			klog.Warningf("Incorrect value of wss_reset_interval, currently set to %d, working set size metric cannot be provided", *wssResetInterval)
+		} else {
+			cgroupCPUPath, err := cont.handler.GetCgroupPath("cpu")
+			if err != nil {
+				klog.Warningf("Could not get CPU cgroup path to calculate wss metric")
+			} else {
+				cont.wssProvider = &wss.Wss{CgroupCPUPath: cgroupCPUPath, Cycles: 0, ResetInterval: *wssResetInterval}
+			}
+		}
+	}
 	return cont, nil
 }
 
@@ -612,6 +638,15 @@ func (c *containerData) updateStats() error {
 			klog.V(2).Infof("Failed to add summary stats for %q: %v", c.info.Name, err)
 		}
 	}
+
+	if c.wssProvider != nil {
+		var wssErr error
+		stats.Wss, wssErr = c.wssProvider.GetStat()
+		if wssErr != nil {
+			klog.V(2).Infof("Failed to get working set size for %q: %v", c.info.Name, wssErr)
+		}
+	}
+
 	var customStatsErr error
 	cm := c.collectorManager.(*collector.GenericCollectorManager)
 	if len(cm.Collectors) > 0 {

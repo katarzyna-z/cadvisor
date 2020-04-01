@@ -49,9 +49,34 @@ func setupContainerData(t *testing.T, spec info.ContainerSpec) (*containerData, 
 		spec,
 		nil,
 	)
+	mockHandler.On("GetCgroupPath", "cpu").Return(
+		"testdata/cgroup",
+		nil,
+	)
+
 	memoryCache := memory.New(60, nil)
+
+	includedMetrics := container.MetricSet{
+		container.CpuUsageMetrics:                struct{}{},
+		container.ProcessSchedulerMetrics:        struct{}{},
+		container.PerCpuUsageMetrics:             struct{}{},
+		container.MemoryUsageMetrics:             struct{}{},
+		container.CpuLoadMetrics:                 struct{}{},
+		container.DiskIOMetrics:                  struct{}{},
+		container.AcceleratorUsageMetrics:        struct{}{},
+		container.DiskUsageMetrics:               struct{}{},
+		container.NetworkUsageMetrics:            struct{}{},
+		container.NetworkTcpUsageMetrics:         struct{}{},
+		container.NetworkAdvancedTcpUsageMetrics: struct{}{},
+		container.NetworkUdpUsageMetrics:         struct{}{},
+		container.ProcessMetrics:                 struct{}{},
+		container.AppMetrics:                     struct{}{},
+		container.HugetlbUsageMetrics:            struct{}{},
+		container.WssMetric:                      struct{}{},
+	}
+
 	fakeClock := clock.NewFakeClock(time.Now())
-	ret, err := newContainerData(containerName, memoryCache, mockHandler, false, &collector.GenericCollectorManager{}, 60*time.Second, true, fakeClock)
+	ret, err := newContainerData(containerName, memoryCache, mockHandler, false, &collector.GenericCollectorManager{}, 60*time.Second, true, includedMetrics, fakeClock)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,6 +86,87 @@ func setupContainerData(t *testing.T, spec info.ContainerSpec) (*containerData, 
 // Create a containerData instance for a test and add a default GetSpec mock.
 func newTestContainerData(t *testing.T) (*containerData, *containertest.MockContainerHandler, *memory.InMemoryCache, *clock.FakeClock) {
 	return setupContainerData(t, itest.GenerateRandomContainerSpec(4))
+}
+
+func TestNewContainerDataWhenAllMetricsEnabled(t *testing.T) {
+	mockHandler := containertest.NewMockContainerHandler(containerName)
+	mockHandler.On("GetSpec").Return(
+		itest.GenerateRandomContainerSpec(4),
+		nil,
+	)
+	mockHandler.On("GetCgroupPath", "cpu").Return(
+		"testdata/cgroup",
+		nil,
+	)
+
+	memoryCache := memory.New(60, nil)
+
+	includedMetrics := container.MetricSet{
+		container.CpuUsageMetrics:                struct{}{},
+		container.ProcessSchedulerMetrics:        struct{}{},
+		container.PerCpuUsageMetrics:             struct{}{},
+		container.MemoryUsageMetrics:             struct{}{},
+		container.CpuLoadMetrics:                 struct{}{},
+		container.DiskIOMetrics:                  struct{}{},
+		container.AcceleratorUsageMetrics:        struct{}{},
+		container.DiskUsageMetrics:               struct{}{},
+		container.NetworkUsageMetrics:            struct{}{},
+		container.NetworkTcpUsageMetrics:         struct{}{},
+		container.NetworkAdvancedTcpUsageMetrics: struct{}{},
+		container.NetworkUdpUsageMetrics:         struct{}{},
+		container.ProcessMetrics:                 struct{}{},
+		container.AppMetrics:                     struct{}{},
+		container.HugetlbUsageMetrics:            struct{}{},
+		container.WssMetric:                      struct{}{},
+	}
+
+	fakeClock := clock.NewFakeClock(time.Now())
+	containerData, err := newContainerData(containerName, memoryCache, mockHandler, false, &collector.GenericCollectorManager{}, 60*time.Second, true, includedMetrics, fakeClock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.NotNil(t, containerData)
+	assert.NotNil(t, containerData.wssProvider)
+}
+
+func TestNewContainerDataWhenWssMetricIsDisabled(t *testing.T) {
+	mockHandler := containertest.NewMockContainerHandler(containerName)
+	mockHandler.On("GetSpec").Return(
+		itest.GenerateRandomContainerSpec(4),
+		nil,
+	)
+	mockHandler.On("GetCgroupPath", "cpu").Return(
+		"testdata/cgroup",
+		nil,
+	)
+
+	memoryCache := memory.New(60, nil)
+
+	includedMetrics := container.MetricSet{
+		container.CpuUsageMetrics:                struct{}{},
+		container.ProcessSchedulerMetrics:        struct{}{},
+		container.PerCpuUsageMetrics:             struct{}{},
+		container.MemoryUsageMetrics:             struct{}{},
+		container.CpuLoadMetrics:                 struct{}{},
+		container.DiskIOMetrics:                  struct{}{},
+		container.AcceleratorUsageMetrics:        struct{}{},
+		container.DiskUsageMetrics:               struct{}{},
+		container.NetworkUsageMetrics:            struct{}{},
+		container.NetworkTcpUsageMetrics:         struct{}{},
+		container.NetworkAdvancedTcpUsageMetrics: struct{}{},
+		container.NetworkUdpUsageMetrics:         struct{}{},
+		container.ProcessMetrics:                 struct{}{},
+		container.AppMetrics:                     struct{}{},
+		container.HugetlbUsageMetrics:            struct{}{},
+	}
+
+	fakeClock := clock.NewFakeClock(time.Now())
+	containerData, err := newContainerData(containerName, memoryCache, mockHandler, false, &collector.GenericCollectorManager{}, 60*time.Second, true, includedMetrics, fakeClock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.NotNil(t, containerData)
+	assert.Nil(t, containerData.wssProvider)
 }
 
 func TestUpdateSubcontainers(t *testing.T) {
