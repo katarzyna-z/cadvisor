@@ -19,7 +19,7 @@ import (
 
 	// TODO(rjnagal): Remove dependency after moving all stats structs from v1.
 	// using v1 now for easy conversion.
-	"github.com/google/cadvisor/info/v1"
+	v1 "github.com/google/cadvisor/info/v1"
 )
 
 const (
@@ -136,8 +136,8 @@ type DeprecatedContainerStats struct {
 	// Custom Metrics
 	HasCustomMetrics bool                      `json:"has_custom_metrics"`
 	CustomMetrics    map[string][]v1.MetricVal `json:"custom_metrics,omitempty"`
-	// // Working Set Size metric
-	// Wss uint64 `json:"wss,omitempty"`
+	// Working Set Size metric
+	Wss uint64 `json:"wss,omitempty"`
 }
 
 type ContainerStats struct {
