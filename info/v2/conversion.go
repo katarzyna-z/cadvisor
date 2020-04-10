@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/cadvisor/info/v1"
+	v1 "github.com/google/cadvisor/info/v1"
 	"k8s.io/klog"
 )
 
@@ -173,6 +173,7 @@ func DeprecatedStatsFromV1(cont *v1.ContainerInfo) []DeprecatedContainerStats {
 			HasFilesystem:    cont.Spec.HasFilesystem,
 			HasDiskIo:        cont.Spec.HasDiskIo,
 			HasCustomMetrics: cont.Spec.HasCustomMetrics,
+			Wss:              val.Wss,
 		}
 		if stat.HasCpu {
 			stat.Cpu = val.Cpu
