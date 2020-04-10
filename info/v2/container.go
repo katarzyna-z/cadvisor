@@ -136,8 +136,8 @@ type DeprecatedContainerStats struct {
 	// Custom Metrics
 	HasCustomMetrics bool                      `json:"has_custom_metrics"`
 	CustomMetrics    map[string][]v1.MetricVal `json:"custom_metrics,omitempty"`
-	// Working Set Size metric
-	Wss uint64 `json:"wss,omitempty"`
+	// // Working Set Size metric
+	// Wss uint64 `json:"wss,omitempty"`
 }
 
 type ContainerStats struct {

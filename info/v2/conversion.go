@@ -173,7 +173,6 @@ func DeprecatedStatsFromV1(cont *v1.ContainerInfo) []DeprecatedContainerStats {
 			HasFilesystem:    cont.Spec.HasFilesystem,
 			HasDiskIo:        cont.Spec.HasDiskIo,
 			HasCustomMetrics: cont.Spec.HasCustomMetrics,
-			Wss:              val.Wss,
 		}
 		if stat.HasCpu {
 			stat.Cpu = val.Cpu
