@@ -18,21 +18,18 @@ import (
 	"io/ioutil"
 	"testing"
 
-	info "github.com/google/cadvisor/info/v1"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestWss(t *testing.T) {
 	//overwrite package variables
-	smapsFilePathPattern = "testdata/smaps%s"
-	clearRefsFilePathPattern = "testdata/clear_refs%s"
+	smapsFilePathPattern = "testdata/smaps%d"
+	clearRefsFilePathPattern = "testdata/clear_refs%d"
 
-	collector := newCollector("testdata", 3)
-
-	stats := info.ContainerStats{}
-	err := collector.UpdateStats(&stats)
+	pids := []int{4, 6, 8}
+	stat, err := GetStat(pids, 1, 3)
 	assert.Nil(t, err)
-	assert.Equal(t, uint64(416*1024), stats.Wss)
+	assert.Equal(t, uint64(416*1024), stat)
 
 	clearRefsFiles := []string{
 		"testdata/clear_refs4",
@@ -47,15 +44,13 @@ func TestWss(t *testing.T) {
 
 func TestWssWhenResetIsNeeded(t *testing.T) {
 	//overwrite package variables
-	smapsFilePathPattern = "testdata/smaps%s"
-	clearRefsFilePathPattern = "testdata/clear_refs%s"
+	smapsFilePathPattern = "testdata/smaps%d"
+	clearRefsFilePathPattern = "testdata/clear_refs%d"
 
-	collector := newCollector("testdata", 1)
-
-	stats := info.ContainerStats{}
-	err := collector.UpdateStats(&stats)
+	pids := []int{4, 6, 8}
+	stat, err := GetStat(pids, 1, 1)
 	assert.Nil(t, err)
-	assert.Equal(t, uint64(416*1024), stats.Wss)
+	assert.Equal(t, uint64(416*1024), stat)
 
 	clearRefsFiles := []string{
 		"testdata/clear_refs4",
@@ -72,21 +67,20 @@ func TestWssWhenResetIsNeeded(t *testing.T) {
 
 func TestWssGetReferencedWhenSmapsMissing(t *testing.T) {
 	//overwrite package variable
-	smapsFilePathPattern = "testdata/smaps%s"
-	collector := &collector{cgroupCPUPath: "testdata/cgroup.procs", resetInterval: 3}
-	pids := []string{"10"}
-	referencedKBytes, err := collector.getReferenced(pids)
+	smapsFilePathPattern = "testdata/smaps%d"
+
+	pids := []int{10}
+	referenced, err := getReferenced(pids)
 	assert.Nil(t, err)
-	assert.Equal(t, uint64(0), referencedKBytes)
+	assert.Equal(t, uint64(0), referenced)
 }
 
 func TestWssClearReferencedWhenClearRefsMissing(t *testing.T) {
 	//overwrite package variable
-	clearRefsFilePathPattern = "testdata/clear_refs%s"
+	clearRefsFilePathPattern = "testdata/clear_refs%d"
 
-	collector := &collector{cgroupCPUPath: "testdata/cgroup.procs", resetInterval: 1}
-	pids := []string{"10"}
-	err := collector.clearReferenced(pids)
+	pids := []int{10}
+	err := clearReferenced(pids, 0, 1)
 	assert.Nil(t, err)
 }
 

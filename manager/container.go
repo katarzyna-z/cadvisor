@@ -89,8 +89,11 @@ type containerData struct {
 	// Runs custom metric collectors.
 	collectorManager collector.CollectorManager
 
-	// collectors hold collectors for metrics from additional sources
-	collectors map[string]stats.Collector
+	// nvidiaCollector updates stats for Nvidia GPUs attached to the container.
+	nvidiaCollector stats.Collector
+
+	// perfCollector updates stats for perf_event cgroup controller.
+	perfCollector stats.Collector
 }
 
 // jitter returns a time.Duration between duration and duration + maxFactor * duration,
@@ -116,9 +119,7 @@ func (c *containerData) Stop() error {
 	}
 	close(c.stop)
 
-	for _, collector := range c.collectors {
-		collector.Destroy()
-	}
+	c.perfCollector.Destroy()
 	return nil
 }
 
@@ -398,7 +399,8 @@ func newContainerData(containerName string, memoryCache *memory.InMemoryCache, h
 		collectorManager:         collectorManager,
 		onDemandChan:             make(chan chan struct{}, 100),
 		clock:                    clock,
-		collectors:               make(map[string]stats.Collector, 0),
+		perfCollector:            &stats.NoopCollector{},
+		nvidiaCollector:          &stats.NoopCollector{},
 	}
 	cont.info.ContainerReference = ref
 
@@ -584,6 +586,8 @@ func (c *containerData) updateLoad(newLoad uint64) {
 }
 
 func (c *containerData) updateStats() error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	stats, statsErr := c.handler.GetStats()
 	if statsErr != nil {
 		// Ignore errors if the container is dead.
@@ -632,6 +636,14 @@ func (c *containerData) updateStats() error {
 		}
 	}
 
+	var nvidiaStatsErr error
+	if c.nvidiaCollector != nil {
+		// This updates the Accelerators field of the stats struct
+		nvidiaStatsErr = c.nvidiaCollector.UpdateStats(stats)
+	}
+
+	perfStatsErr := c.perfCollector.UpdateStats(stats)
+
 	ref, err := c.handler.ContainerReference()
 	if err != nil {
 		// Ignore errors if the container is dead.
@@ -653,13 +665,13 @@ func (c *containerData) updateStats() error {
 		return statsErr
 	}
 
-	// updates stats using collectors
-	for name, collector := range c.collectors {
-		err := collector.UpdateStats(stats)
-		if err != nil {
-			klog.Errorf("error occurred while collecting %s stats for container %s: %s", name, cInfo.Name, err)
-		}
-		return err
+	if nvidiaStatsErr != nil {
+		klog.Errorf("error occurred while collecting nvidia stats for container %s: %s", cInfo.Name, err)
+		return nvidiaStatsErr
+	}
+	if perfStatsErr != nil {
+		klog.Errorf("error occurred while collecting perf stats for container %s: %s", cInfo.Name, err)
+		return perfStatsErr
 	}
 	return customStatsErr
 }

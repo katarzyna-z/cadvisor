@@ -15,16 +15,11 @@
 package wss
 
 import (
-	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
-
-	info "github.com/google/cadvisor/info/v1"
-	"github.com/google/cadvisor/stats"
 
 	"k8s.io/klog"
 )
@@ -34,115 +29,57 @@ const (
 )
 
 var (
-	smapsFilePathPattern     = "/proc/%s/smaps"
-	clearRefsFilePathPattern = "/proc/%s/clear_refs"
+	smapsFilePathPattern     = "/proc/%d/smaps"
+	clearRefsFilePathPattern = "/proc/%d/clear_refs"
 
 	referencedRegexp = regexp.MustCompile(`Referenced:\s*([0-9]+)\s*kB`)
 	isDigitRegExp    = regexp.MustCompile("\\d+")
 )
 
-type manager struct {
-	resetInterval uint64
-
-	stats.NoopDestroy
-}
-
-// NewManager if wss_reset_internal parameter has appropriate value returs new manger of wss metric
-// otherwise returns NoopManger
-func NewManager(resetInterval uint64, wssEnabled bool) stats.Manager {
-	if resetInterval == uint64(0) {
-		klog.Warningf("Incorrect value of wss_reset_interval, currently set to %d, working set size metric cannot be provided", resetInterval)
-		return &stats.NoopManager{}
-	} else if !wssEnabled {
-		klog.V(3).Infof("Working set size metric is disabled")
-		return &stats.NoopManager{}
-	}
-	return &manager{resetInterval: resetInterval}
-}
-
-// GetCollector returns collector of wss metric
-func (m *manager) GetCollector(cgroupPath string) (stats.Collector, error) {
-	collector := newCollector(cgroupPath, m.resetInterval)
-	return collector, nil
-}
-
-func newCollector(cgroupPath string, resetInterval uint64) stats.Collector {
-	cgroupCPUPath := filepath.Join(cgroupPath, cgroupProcfs)
-	_, err := os.Stat(cgroupCPUPath)
-	if err != nil {
-		klog.Warningf("Working set size metric is not available for %s cgroup, err: %s", cgroupPath, err)
-		return &stats.NoopCollector{}
-	}
-
-	collector := &collector{cgroupCPUPath: cgroupCPUPath, resetInterval: resetInterval}
-	return collector
-}
-
-// collector holds information necessary to calculate working set size
-type collector struct {
-	// cgroupCPUPath CPU cgroup path
-	cgroupCPUPath string
-	// Cycles counter for measurements cycles
-	cycles uint64
-	// resetInterval number of measurement cycles after which referenced bytes are cleared
-	resetInterval uint64
-
-	stats.NoopDestroy
-}
-
-// UpdateStats calculates working set size and clear referenced bytes
+// GetStat calculates working set size and clear referenced bytes
 // see: https://github.com/brendangregg/wss#wsspl-referenced-page-flag
-func (c *collector) UpdateStats(stats *info.ContainerStats) error {
-	c.cycles++
-
-	pids, err := c.getPids()
+func GetStat(pids []int, cycles uint64, resetInterval uint64) (uint64, error) {
+	referencedKBytes, err := getReferenced(pids)
 	if err != nil {
-		return err
+		return uint64(0), err
 	}
 
-	referencedKBytes, err := c.getReferenced(pids)
+	err = clearReferenced(pids, cycles, resetInterval)
 	if err != nil {
-		return err
+		return uint64(0), err
 	}
-
-	err = c.clearReferenced(pids)
-	if err != nil {
-		return err
-	}
-	stats.Wss = referencedKBytes * 1024
-	return nil
+	return referencedKBytes * 1024, nil
 }
 
-func (c collector) getPids() ([]string, error) {
-	file, err := os.Open(c.cgroupCPUPath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
+// func getPids() ([]string, error) {
+// 	file, err := os.Open(c.cgroupCPUPath)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer file.Close()
 
-	pids := make([]string, 0)
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		pids = append(pids, scanner.Text())
-	}
+// 	pids := make([]string, 0)
+// 	scanner := bufio.NewScanner(file)
+// 	for scanner.Scan() {
+// 		pids = append(pids, scanner.Text())
+// 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("Error in reading PIDs, err: %s", err)
-	}
+// 	if err := scanner.Err(); err != nil {
+// 		return nil, fmt.Errorf("Error in reading PIDs, err: %s", err)
+// 	}
 
-	if len(pids) == 0 {
-		klog.V(3).Infof("Not found any PID for %s cgroup", c.cgroupCPUPath)
-	}
-	return pids, nil
-}
+// 	if len(pids) == 0 {
+// 		klog.V(3).Infof("Not found any PID for %s cgroup", c.cgroupCPUPath)
+// 	}
+// 	return pids, nil
+// }
 
-func (c collector) getReferenced(pids []string) (uint64, error) {
+func getReferenced(pids []int) (uint64, error) {
 	referencedKBytes := uint64(0)
 	readSmapsContent := false
 	foundMatch := false
 	for _, pid := range pids {
 		smapsFilePath := fmt.Sprintf(smapsFilePathPattern, pid)
-
 		smapsContent, err := ioutil.ReadFile(smapsFilePath)
 		if err != nil {
 			klog.V(3).Infof("Cannot read %s file, err: %s", smapsFilePath, err)
@@ -174,20 +111,20 @@ func (c collector) getReferenced(pids []string) (uint64, error) {
 
 	if len(pids) != 0 {
 		if !readSmapsContent {
-			klog.Warningf("Cannot read smaps files for any PID from %s", c.cgroupCPUPath)
+			klog.Warningf("Cannot read smaps files for any PID from %s", "CONTAINER")
 		} else if !foundMatch {
-			klog.Warningf("Not found any information about referenced bytes in smaps files for any PID from %s", c.cgroupCPUPath)
+			klog.Warningf("Not found any information about referenced bytes in smaps files for any PID from %s", "CONTAINER")
 		}
 	}
 	return referencedKBytes, nil
 }
 
-func (c collector) clearReferenced(pids []string) error {
-	if c.resetInterval == 0 {
-		return fmt.Errorf("Incorrect of reset interval for wss, ResetInterval: %d", c.resetInterval)
+func clearReferenced(pids []int, cycles uint64, resetInterval uint64) error {
+	if resetInterval == 0 {
+		return fmt.Errorf("Incorrect of reset interval for wss, ResetInterval: %d", resetInterval)
 	}
 
-	if c.cycles%c.resetInterval == 0 {
+	if cycles%resetInterval == 0 {
 		for _, pid := range pids {
 			clearRefsFilePath := fmt.Sprintf(clearRefsFilePathPattern, pid)
 			clerRefsFile, err := os.OpenFile(clearRefsFilePath, os.O_WRONLY, 0644)

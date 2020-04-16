@@ -17,6 +17,7 @@ package libcontainer
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/google/cadvisor/container"
 	info "github.com/google/cadvisor/info/v1"
+	"github.com/google/cadvisor/wss"
 	"golang.org/x/sys/unix"
 
 	"bytes"
@@ -44,9 +46,11 @@ type Handler struct {
 	pid             int
 	includedMetrics container.MetricSet
 	pidMetricsCache map[int]*info.CpuSchedstat
+	wssCycles       uint64
 }
 
 var whitelistedUlimits = [...]string{"max_open_files"}
+var wssResetInterval = flag.Uint64("wss_reset_interval", 5, "Reset interval for working set size metric, number of measurement cycles after which referenced bytes are cleared")
 
 func NewHandler(cgroupManager cgroups.Manager, rootFs string, pid int, includedMetrics container.MetricSet) *Handler {
 	return &Handler{
@@ -77,6 +81,19 @@ func (h *Handler) GetStats() (*info.ContainerStats, error) {
 			stats.Cpu.Schedstat, err = schedulerStatsFromProcs(h.rootFs, pids, h.pidMetricsCache)
 			if err != nil {
 				klog.V(4).Infof("Unable to get Process Scheduler Stats: %v", err)
+			}
+		}
+	}
+
+	if h.includedMetrics.Has(container.WssMetric) {
+		h.wssCycles++
+		pids, err := h.cgroupManager.GetPids()
+		if err != nil {
+			klog.V(4).Infof("Could not get PIDs for container %d: %v", h.pid, err)
+		} else {
+			stats.Wss, err = wss.GetStat(pids, h.wssCycles, *wssResetInterval)
+			if err != nil {
+				klog.V(4).Infof("Unable to get working set size: %v", err)
 			}
 		}
 	}
