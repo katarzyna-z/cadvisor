@@ -78,6 +78,7 @@ Metric name | Type | Description | Unit (where applicable)
 `container_spec_memory_reservation_limit_bytes` | Gauge | Memory reservation limit for the container | bytes
 `container_start_time_seconds` | Gauge | Start time of the container since unix epoch | seconds
 `container_tasks_state` | Gauge | Number of tasks in given state (`sleeping`, `running`, `stopped`, `uninterruptible`, or `ioawaiting`) |
+`container_wss` | Gauge |  Container referenced bytes during last measurements cycle based on Referenced field in /proc/smaps file, with /proc/PIDs/clear_refs set to 1 after defined number of cycles configured through `wss_reset_interval` cAdvisor parameter.</br>Warning: this is intrusive collection, because can influence kernel page reclaim policy and add latency. Refer to https://github.com/brendangregg/wss#wsspl-referenced-page-flag for more details. | bytes
 
 ## Prometheus hardware metrics
 

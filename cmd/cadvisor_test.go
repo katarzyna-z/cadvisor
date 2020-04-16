@@ -40,6 +40,12 @@ func TestUdpMetricsAreDisabledByDefault(t *testing.T) {
 	assert.True(t, ignoreMetrics.Has(container.NetworkUdpUsageMetrics))
 }
 
+func TestWssMetricIsDisabledByDefault(t *testing.T) {
+	assert.True(t, ignoreMetrics.Has(container.WssMetric))
+	flag.Parse()
+	assert.True(t, ignoreMetrics.Has(container.WssMetric))
+}
+
 func TestIgnoreMetrics(t *testing.T) {
 	tests := []struct {
 		value    string
@@ -86,6 +92,7 @@ func TestToIncludedMetrics(t *testing.T) {
 			container.AppMetrics:                     struct{}{},
 			container.HugetlbUsageMetrics:            struct{}{},
 			container.PerfMetrics:                    struct{}{},
+			container.WssMetric:                      struct{}{},
 		},
 		container.AllMetrics,
 		{},

@@ -102,6 +102,7 @@ func ContainerStatsFromV1(containerName string, spec *v1.ContainerSpec, stats []
 	for _, val := range stats {
 		stat := &ContainerStats{
 			Timestamp: val.Timestamp,
+			Wss:       val.Wss,
 		}
 		if spec.HasCpu {
 			stat.Cpu = &val.Cpu
@@ -172,6 +173,7 @@ func DeprecatedStatsFromV1(cont *v1.ContainerInfo) []DeprecatedContainerStats {
 			HasFilesystem:    cont.Spec.HasFilesystem,
 			HasDiskIo:        cont.Spec.HasDiskIo,
 			HasCustomMetrics: cont.Spec.HasCustomMetrics,
+			Wss:              val.Wss,
 		}
 		if stat.HasCpu {
 			stat.Cpu = val.Cpu
