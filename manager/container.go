@@ -584,6 +584,8 @@ func (c *containerData) updateLoad(newLoad uint64) {
 }
 
 func (c *containerData) updateStats() error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	stats, statsErr := c.handler.GetStats()
 	if statsErr != nil {
 		// Ignore errors if the container is dead.

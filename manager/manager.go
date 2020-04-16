@@ -344,6 +344,9 @@ func (self *manager) destroyMetricsManagers() {
 }
 
 func (self *manager) destroyCollectors() {
+	self.containersLock.RLock()
+	defer self.containersLock.Unlock()
+
 	for _, container := range self.containers {
 		for _, collector := range container.collectors {
 			collector.Destroy()
