@@ -50,12 +50,6 @@ import (
 	"k8s.io/utils/clock"
 )
 
-const (
-	nvidiaMetricsProviderKey = "nvidia"
-	perfMetricsProviderKey   = "perf"
-	wssMetricsProviderKey    = "wss"
-)
-
 var globalHousekeepingInterval = flag.Duration("global_housekeeping_interval", 1*time.Minute, "Interval between global housekeepings")
 var updateMachineInfoInterval = flag.Duration("update_machine_info_interval", 5*time.Minute, "Interval between machine info updates.")
 var logCadvisorUsage = flag.Bool("log_cadvisor_usage", false, "Whether to log the usage of the cAdvisor container")

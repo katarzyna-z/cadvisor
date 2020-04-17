@@ -51,29 +51,6 @@ func GetStat(pids []int, cycles uint64, resetInterval uint64) (uint64, error) {
 	return referencedKBytes * 1024, nil
 }
 
-// func getPids() ([]string, error) {
-// 	file, err := os.Open(c.cgroupCPUPath)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer file.Close()
-
-// 	pids := make([]string, 0)
-// 	scanner := bufio.NewScanner(file)
-// 	for scanner.Scan() {
-// 		pids = append(pids, scanner.Text())
-// 	}
-
-// 	if err := scanner.Err(); err != nil {
-// 		return nil, fmt.Errorf("Error in reading PIDs, err: %s", err)
-// 	}
-
-// 	if len(pids) == 0 {
-// 		klog.V(3).Infof("Not found any PID for %s cgroup", c.cgroupCPUPath)
-// 	}
-// 	return pids, nil
-// }
-
 func getReferenced(pids []int) (uint64, error) {
 	referencedKBytes := uint64(0)
 	readSmapsContent := false

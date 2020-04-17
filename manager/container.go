@@ -118,7 +118,6 @@ func (c *containerData) Stop() error {
 		return err
 	}
 	close(c.stop)
-
 	c.perfCollector.Destroy()
 	return nil
 }
@@ -586,8 +585,6 @@ func (c *containerData) updateLoad(newLoad uint64) {
 }
 
 func (c *containerData) updateStats() error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	stats, statsErr := c.handler.GetStats()
 	if statsErr != nil {
 		// Ignore errors if the container is dead.
@@ -664,7 +661,6 @@ func (c *containerData) updateStats() error {
 	if statsErr != nil {
 		return statsErr
 	}
-
 	if nvidiaStatsErr != nil {
 		klog.Errorf("error occurred while collecting nvidia stats for container %s: %s", cInfo.Name, err)
 		return nvidiaStatsErr
