@@ -411,7 +411,7 @@ func (p testSubcontainersInfoProvider) SubcontainersInfo(string, *info.Container
 							},
 						},
 					},
-					Wss: 1234,
+					Referenced: 1234,
 				},
 			},
 		},

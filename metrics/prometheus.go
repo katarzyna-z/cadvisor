@@ -1544,14 +1544,14 @@ func NewPrometheusCollector(i infoProvider, f ContainerLabelsFunc, includedMetri
 
 	}
 
-	if includedMetrics.Has(container.WssMetric) {
+	if includedMetrics.Has(container.ReferencedMetric) {
 		c.containerMetrics = append(c.containerMetrics, []containerMetric{
 			{
-				name:      "container_wss",
+				name:      "container_referenced_bytes",
 				help:      "Container referenced bytes during last measurements cycle",
 				valueType: prometheus.GaugeValue,
 				getValues: func(s *info.ContainerStats) metricValues {
-					return metricValues{{value: float64(s.Wss), timestamp: s.Timestamp}}
+					return metricValues{{value: float64(s.Referenced), timestamp: s.Timestamp}}
 				},
 			},
 		}...)

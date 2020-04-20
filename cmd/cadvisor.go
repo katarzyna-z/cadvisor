@@ -87,7 +87,7 @@ var (
 		container.ProcessSchedulerMetrics:        struct{}{},
 		container.ProcessMetrics:                 struct{}{},
 		container.HugetlbUsageMetrics:            struct{}{},
-		container.WssMetric:                      struct{}{},
+		container.ReferencedMetric:               struct{}{},
 	}}
 
 	// List of metrics that can be ignored.
@@ -102,7 +102,7 @@ var (
 		container.ProcessSchedulerMetrics:        struct{}{},
 		container.ProcessMetrics:                 struct{}{},
 		container.HugetlbUsageMetrics:            struct{}{},
-		container.WssMetric:                      struct{}{},
+		container.ReferencedMetric:               struct{}{},
 	}
 )
 
@@ -134,7 +134,7 @@ func (ml *metricSetValue) Set(value string) error {
 }
 
 func init() {
-	flag.Var(&ignoreMetrics, "disable_metrics", "comma-separated list of `metrics` to be disabled. Options are 'disk', 'diskIO', 'network', 'tcp', 'udp', 'percpu', 'sched', 'process', 'hugetlb', 'wss'.")
+	flag.Var(&ignoreMetrics, "disable_metrics", "comma-separated list of `metrics` to be disabled. Options are 'disk', 'diskIO', 'network', 'tcp', 'udp', 'percpu', 'sched', 'process', 'hugetlb', 'referenced'.")
 
 	// Default logging verbosity to V(2)
 	flag.Set("v", "2")

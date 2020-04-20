@@ -40,8 +40,8 @@ import (
 )
 
 var (
-	whitelistedUlimits = [...]string{"max_open_files"}
-	wssResetInterval   = flag.Uint64("wss_reset_interval", 5, "Reset interval for working set size metric, number of measurement cycles after which referenced bytes are cleared")
+	whitelistedUlimits      = [...]string{"max_open_files"}
+	referencedResetInterval = flag.Uint64("referenced_reset_interval", 5, "Reset interval for referenced bytes (container_referenced_bytes metric), number of measurement cycles after which referenced bytes are cleared")
 
 	smapsFilePathPattern     = "/proc/%d/smaps"
 	clearRefsFilePathPattern = "/proc/%d/clear_refs"
@@ -92,13 +92,13 @@ func (h *Handler) GetStats() (*info.ContainerStats, error) {
 		}
 	}
 
-	if h.includedMetrics.Has(container.WssMetric) {
+	if h.includedMetrics.Has(container.ReferencedMetric) {
 		h.cycles++
 		pids, err := h.cgroupManager.GetPids()
 		if err != nil {
 			klog.V(4).Infof("Could not get PIDs for container %d: %v", h.pid, err)
 		} else {
-			stats.Wss, err = referencedBytesStat(pids, h.cycles, *wssResetInterval)
+			stats.Referenced, err = referencedBytesStat(pids, h.cycles, *referencedResetInterval)
 			if err != nil {
 				klog.V(4).Infof("Unable to get working set size: %v", err)
 			}
@@ -342,6 +342,8 @@ func schedulerStatsFromProcs(rootFs string, pids []int, pidMetricsCache map[int]
 	return schedstats, nil
 }
 
+// referencedBytesStat gets and clears referenced bytes
+// see: https://github.com/brendangregg/wss#wsspl-referenced-page-flag
 func referencedBytesStat(pids []int, cycles uint64, resetInterval uint64) (uint64, error) {
 	referencedKBytes, err := getReferencedBytes(pids)
 	if err != nil {
@@ -402,7 +404,7 @@ func getReferencedBytes(pids []int) (uint64, error) {
 
 func clearReferencedBytes(pids []int, cycles uint64, resetInterval uint64) error {
 	if resetInterval == 0 {
-		return fmt.Errorf("Incorrect of reset interval for wss, ResetInterval: %d", resetInterval)
+		return fmt.Errorf("Incorrect of reset interval for referenced bytes, ResetInterval: %d", resetInterval)
 	}
 
 	if cycles%resetInterval == 0 {

@@ -208,7 +208,7 @@ func TestContainerStatsFromV1(t *testing.T) {
 				Name:         "cycles",
 			},
 		},
-		Wss: uint64(1234),
+		Referenced: uint64(1234),
 	}
 	expectedV2Stats := ContainerStats{
 		Timestamp: timestamp,
@@ -227,7 +227,7 @@ func TestContainerStatsFromV1(t *testing.T) {
 		},
 		Accelerators: v1Stats.Accelerators,
 		PerfStats:    v1Stats.PerfStats,
-		Wss:          v1Stats.Wss,
+		Referenced:   v1Stats.Referenced,
 	}
 
 	v2Stats := ContainerStatsFromV1("test", &v1Spec, []*v1.ContainerStats{&v1Stats})
