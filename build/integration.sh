@@ -32,6 +32,19 @@ function start {
     kill $TEST_PID # cAdvisor crashed: abort testing.
   fi
 }
+
+readonly TIMEOUT=30 # Timeout to wait for Docker or cAdvisor, in seconds.
+
+DOCKER_START=$(date +%s)
+while ! pgrep -f docker; do
+  if (( $(date +%s) - $DOCKER_START > $TIMEOUT )); then
+    echo "Timed out waiting for Docker to start"
+    exit 1
+  fi
+  echo "Waiting for Docker to start ..."
+  sleep 1
+done
+
 start &
 RUNNER_PID=$!
 
@@ -44,7 +57,7 @@ function cleanup {
 }
 trap cleanup EXIT
 
-readonly TIMEOUT=30 # Timeout to wait for cAdvisor, in seconds.
+
 START=$(date +%s)
 while [ "$(curl -Gs http://localhost:8080/healthz)" != "ok" ]; do
   if (( $(date +%s) - $START > $TIMEOUT )); then
