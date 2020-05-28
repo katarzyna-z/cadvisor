@@ -72,6 +72,8 @@ const (
 	serFsLimit string = "fs_limit"
 	// Filesystem usage.
 	serFsUsage string = "fs_usage"
+	// Referenced memory
+	serReferencedMemory string = "referenced_memory"
 )
 
 func new() (storage.StorageDriver, error) {
@@ -205,6 +207,9 @@ func (s *influxdbStorage) containerStatsToPoints(
 	points = append(points, makePoint(serRxErrors, stats.Network.RxErrors))
 	points = append(points, makePoint(serTxBytes, stats.Network.TxBytes))
 	points = append(points, makePoint(serTxErrors, stats.Network.TxErrors))
+
+	// Referenced Memory
+	points = append(points, makePoint(serReferencedMemory, stats.ReferencedMemory))
 
 	s.tagPoints(cInfo, stats, points)
 
