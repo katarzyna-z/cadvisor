@@ -104,7 +104,7 @@ func Info(sysFs sysfs.SysFs, fsInfo fs.FsInfo, inHostNamespace bool) (*info.Mach
 		klog.Errorf("Failed to get network devices: %v", err)
 	}
 
-	topology, numCores, err := GetTopology(sysFs)
+	topology, numCores, err := GetTopology(sysFs, cpuinfo)
 	if err != nil {
 		klog.Errorf("Failed to get topology information: %v", err)
 	}

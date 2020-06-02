@@ -17,6 +17,7 @@ package sysinfo
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"sort"
 	"testing"
@@ -161,7 +162,7 @@ func TestGetNodesInfo(t *testing.T) {
 	}
 	fakeSys.SetPhysicalPackageIDs(physicalPackageIDs, nil)
 
-	nodes, cores, err := GetNodesInfo(fakeSys)
+	nodes, cores, err := GetNodesInfo(fakeSys, []byte{})
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(nodes))
 	assert.Equal(t, 4, cores)
@@ -278,7 +279,7 @@ func TestGetNodesWithoutMemoryInfo(t *testing.T) {
 	}
 	fakeSys.SetHugePagesNr(hugePageNr, nil)
 
-	nodes, cores, err := GetNodesInfo(fakeSys)
+	nodes, cores, err := GetNodesInfo(fakeSys, []byte{})
 	assert.NotNil(t, err)
 	assert.Equal(t, []info.Node([]info.Node(nil)), nodes)
 	assert.Equal(t, 0, cores)
@@ -335,7 +336,7 @@ func TestGetNodesInfoWithoutCacheInfo(t *testing.T) {
 	}
 	fakeSys.SetPhysicalPackageIDs(physicalPackageIDs, nil)
 
-	nodes, cores, err := GetNodesInfo(fakeSys)
+	nodes, cores, err := GetNodesInfo(fakeSys, []byte{})
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(nodes))
 	assert.Equal(t, 4, cores)
@@ -439,7 +440,7 @@ func TestGetNodesInfoWithoutHugePagesInfo(t *testing.T) {
 	}
 	fakeSys.SetPhysicalPackageIDs(physicalPackageIDs, nil)
 
-	nodes, cores, err := GetNodesInfo(fakeSys)
+	nodes, cores, err := GetNodesInfo(fakeSys, []byte{})
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(nodes))
 	assert.Equal(t, 4, cores)
@@ -538,7 +539,7 @@ func TestGetNodesInfoWithoutNodes(t *testing.T) {
 	}
 	fakeSys.SetPhysicalPackageIDs(physicalPackageIDs, nil)
 
-	nodes, cores, err := GetNodesInfo(fakeSys)
+	nodes, cores, err := GetNodesInfo(fakeSys, []byte{})
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(nodes))
 	assert.Equal(t, 4, cores)
@@ -549,7 +550,6 @@ func TestGetNodesInfoWithoutNodes(t *testing.T) {
 
 	nodesJSON, err := json.Marshal(nodes)
 	assert.Nil(t, err)
-	fmt.Println(string(nodesJSON))
 
 	expectedNodes := `[
 		{
@@ -602,6 +602,159 @@ func TestGetNodesInfoWithoutNodes(t *testing.T) {
 	assert.JSONEq(t, expectedNodes, string(nodesJSON))
 }
 
+func TestGetNodesWithoutCoreID(t *testing.T) {
+	fakeSys := &fakesysfs.FakeSysFs{}
+	c := sysfs.CacheInfo{
+		Size:  32 * 1024,
+		Type:  "unified",
+		Level: 3,
+		Cpus:  2,
+	}
+	fakeSys.SetCacheInfo(c)
+
+	nodesPaths := []string{
+		"/fakeSysfs/devices/system/node/node0",
+		"/fakeSysfs/devices/system/node/node1",
+	}
+	fakeSys.SetNodesPaths(nodesPaths, nil)
+
+	cpusPaths := map[string][]string{
+		"/fakeSysfs/devices/system/node/node0": {
+			"/fakeSysfs/devices/system/node/node0/cpu0",
+			"/fakeSysfs/devices/system/node/node0/cpu1",
+		},
+		"/fakeSysfs/devices/system/node/node1": {
+			"/fakeSysfs/devices/system/node/node0/cpu2",
+			"/fakeSysfs/devices/system/node/node0/cpu3",
+		},
+	}
+	fakeSys.SetCPUsPaths(cpusPaths, nil)
+
+	coreThread := map[string]string{
+		"/fakeSysfs/devices/system/node/node0/cpu0": "0",
+		"/fakeSysfs/devices/system/node/node0/cpu1": "0",
+		"/fakeSysfs/devices/system/node/node0/cpu2": "1",
+		"/fakeSysfs/devices/system/node/node0/cpu3": "1",
+	}
+	fakeSys.SetCoreThreads(coreThread, os.ErrNotExist)
+
+	memTotal := "MemTotal:       32817192 kB"
+	fakeSys.SetMemory(memTotal, nil)
+
+	hugePages := []os.FileInfo{
+		&fakesysfs.FileInfo{EntryName: "hugepages-2048kB"},
+	}
+	fakeSys.SetHugePages(hugePages, nil)
+
+	hugePageNr := map[string]string{
+		"/fakeSysfs/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages": "1",
+		"/fakeSysfs/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages": "1",
+	}
+	fakeSys.SetHugePagesNr(hugePageNr, nil)
+
+	physicalPackageIDs := map[string]string{
+		"/fakeSysfs/devices/system/node/node0/cpu0": "0",
+		"/fakeSysfs/devices/system/node/node0/cpu1": "0",
+		"/fakeSysfs/devices/system/node/node0/cpu2": "1",
+		"/fakeSysfs/devices/system/node/node0/cpu3": "1",
+	}
+	fakeSys.SetPhysicalPackageIDs(physicalPackageIDs, nil)
+
+	testCpuinfo := "./testdata/cpuinfo"
+	cpuinfo, err := ioutil.ReadFile(testCpuinfo)
+	assert.Nil(t, err)
+
+	nodes, cores, err := GetNodesInfo(fakeSys, cpuinfo)
+	assert.Nil(t, err)
+
+	assert.NotEqual(t, []info.Node([]info.Node(nil)), nodes)
+	assert.NotEqual(t, 0, cores)
+
+	assert.Equal(t, 2, len(nodes))
+	assert.Equal(t, 4, cores)
+
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].Id < nodes[j].Id
+	})
+
+	nodesJSON, err := json.Marshal(nodes)
+	assert.Nil(t, err)
+
+	expectedNodes := `[
+		{
+		   "node_id":0,
+		   "memory":33604804608,
+		   "hugepages":[
+			  {
+				 "page_size":2048,
+				 "num_pages":1
+			  }
+		   ],
+		   "cores":[
+			  {
+				 "core_id":0,
+				 "thread_ids":[
+					0
+				 ],
+				 "caches":null,
+				 "socket_id":0
+			  },
+			  {
+				 "core_id":1,
+				 "thread_ids":[
+					1
+				 ],
+				 "caches":null,
+				 "socket_id":0
+			  }
+		   ],
+		   "caches":[
+			  {
+				 "size":32768,
+				 "type":"unified",
+				 "level":3
+			  }
+		   ]
+		},
+		{
+		   "node_id":1,
+		   "memory":33604804608,
+		   "hugepages":[
+			  {
+				 "page_size":2048,
+				 "num_pages":1
+			  }
+		   ],
+		   "cores":[
+			  {
+				 "core_id":2,
+				 "thread_ids":[
+					2
+				 ],
+				 "caches":null,
+				 "socket_id":1
+			  },
+			  {
+				 "core_id":3,
+				 "thread_ids":[
+					3
+				 ],
+				 "caches":null,
+				 "socket_id":1
+			  }
+		   ],
+		   "caches":[
+			  {
+				 "size":32768,
+				 "type":"unified",
+				 "level":3
+			  }
+		   ]
+		}
+	 ]`
+	assert.JSONEq(t, expectedNodes, string(nodesJSON))
+}
+
 func TestGetNodeMemInfo(t *testing.T) {
 	fakeSys := &fakesysfs.FakeSysFs{}
 	memTotal := "MemTotal:       32817192 kB"
@@ -651,7 +804,7 @@ func TestGetCoresInfoWhenCoreIDIsNotDigit(t *testing.T) {
 	}
 	sysFs.SetCoreThreads(coreThread, nil)
 
-	cores, err := getCoresInfo(sysFs, []string{"/fakeSysfs/devices/system/node/node0/cpu0"})
+	cores, err := getCoresInfo(sysFs, []string{"/fakeSysfs/devices/system/node/node0/cpu0"}, []byte{})
 	assert.NotNil(t, err)
 	assert.Equal(t, []info.Core(nil), cores)
 }

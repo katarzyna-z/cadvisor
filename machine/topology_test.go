@@ -183,7 +183,7 @@ func TestTopology(t *testing.T) {
 		"/fakeSysfs/devices/system/node/node0/cpu11": "1",
 	}
 	sysFs.SetPhysicalPackageIDs(physicalPackageIDs, nil)
-	topology, numCores, err := GetTopology(sysFs)
+	topology, numCores, err := GetTopology(sysFs, []byte{})
 	assert.Nil(t, err)
 	assert.Equal(t, 12, numCores)
 
@@ -218,7 +218,7 @@ func TestTopology(t *testing.T) {
 
 func TestTopologyEmptySysFs(t *testing.T) {
 	machineArch = "" // overwrite package variable
-	_, _, err := GetTopology(&fakesysfs.FakeSysFs{})
+	_, _, err := GetTopology(&fakesysfs.FakeSysFs{}, []byte{})
 	assert.NotNil(t, err)
 }
 
@@ -263,7 +263,7 @@ func TestTopologyWithoutNodes(t *testing.T) {
 	}
 	sysFs.SetPhysicalPackageIDs(physicalPackageIDs, nil)
 
-	topology, numCores, err := GetTopology(sysFs)
+	topology, numCores, err := GetTopology(sysFs, []byte{})
 	sort.SliceStable(topology, func(i, j int) bool {
 		return topology[i].Id < topology[j].Id
 	})
@@ -335,7 +335,7 @@ func TestTopologyWithNodesWithoutCPU(t *testing.T) {
 	}
 	sysFs.SetHugePagesNr(hugePageNr, nil)
 
-	topology, numCores, err := GetTopology(sysFs)
+	topology, numCores, err := GetTopology(sysFs, []byte{})
 
 	assert.Nil(t, err)
 	assert.Equal(t, 0, numCores)
@@ -383,7 +383,7 @@ func TestTopologyWithNodesWithoutCPU(t *testing.T) {
 
 func TestTopologyOnSystemZ(t *testing.T) {
 	machineArch = "s390" // overwrite package variable
-	nodes, cores, err := GetTopology(&fakesysfs.FakeSysFs{})
+	nodes, cores, err := GetTopology(&fakesysfs.FakeSysFs{}, []byte{})
 	assert.Nil(t, err)
 	assert.Nil(t, nodes)
 	assert.NotNil(t, cores)

@@ -211,12 +211,12 @@ func GetMachineSwapCapacity() (uint64, error) {
 }
 
 // GetTopology returns CPU topology reading information from sysfs
-func GetTopology(sysFs sysfs.SysFs) ([]info.Node, int, error) {
+func GetTopology(sysFs sysfs.SysFs, cpuinfo []byte) ([]info.Node, int, error) {
 	// s390/s390x changes
 	if isSystemZ() {
 		return nil, getNumCores(), nil
 	}
-	return sysinfo.GetNodesInfo(sysFs)
+	return sysinfo.GetNodesInfo(sysFs, cpuinfo)
 }
 
 // parseCapacity matches a Regexp in a []byte, returning the resulting value in bytes.

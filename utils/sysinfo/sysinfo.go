@@ -15,7 +15,9 @@
 package sysinfo
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -27,6 +29,8 @@ import (
 )
 
 var (
+	coreRegExp           = regexp.MustCompile(`core id\s*:\s*([0-9]+)$`)
+	processorRegExp      = regexp.MustCompile(`processor\s*:\s*([0-9]+)$`)
 	schedulerRegExp      = regexp.MustCompile(`.*\[(.*)\].*`)
 	nodeDirRegExp        = regexp.MustCompile(`node/node(\d*)`)
 	cpuDirRegExp         = regexp.MustCompile(`/cpu(\d+)`)
@@ -189,7 +193,7 @@ func GetHugePagesInfo(sysFs sysfs.SysFs, hugepagesDirectory string) ([]info.Huge
 }
 
 // GetNodesInfo returns information about NUMA nodes and their topology
-func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
+func GetNodesInfo(sysFs sysfs.SysFs, cpuinfo []byte) ([]info.Node, int, error) {
 	nodes := []info.Node{}
 	allLogicalCoresCount := 0
 
@@ -200,7 +204,7 @@ func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 
 	if len(nodesDirs) == 0 {
 		klog.Warningf("Nodes topology is not available, providing CPU topology")
-		return getCPUTopology(sysFs)
+		return getCPUTopology(sysFs, cpuinfo)
 	}
 
 	for _, nodeDir := range nodesDirs {
@@ -214,7 +218,7 @@ func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 		if len(cpuDirs) == 0 {
 			klog.Warningf("Found node without any CPU, nodeDir: %s, number of cpuDirs %d, err: %v", nodeDir, len(cpuDirs), err)
 		} else {
-			cores, err := getCoresInfo(sysFs, cpuDirs)
+			cores, err := getCoresInfo(sysFs, cpuDirs, cpuinfo)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -246,7 +250,7 @@ func GetNodesInfo(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 	return nodes, allLogicalCoresCount, err
 }
 
-func getCPUTopology(sysFs sysfs.SysFs) ([]info.Node, int, error) {
+func getCPUTopology(sysFs sysfs.SysFs, cpuinfo []byte) ([]info.Node, int, error) {
 	nodes := []info.Node{}
 
 	cpusPaths, err := sysFs.GetCPUsPaths(cpusPath)
@@ -268,7 +272,7 @@ func getCPUTopology(sysFs sysfs.SysFs) ([]info.Node, int, error) {
 	for physicalPackageID, cpus := range cpusByPhysicalPackageID {
 		node := info.Node{Id: physicalPackageID}
 
-		cores, err := getCoresInfo(sysFs, cpus)
+		cores, err := getCoresInfo(sysFs, cpus, cpuinfo)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -368,7 +372,7 @@ func getNodeMemInfo(sysFs sysfs.SysFs, nodeDir string) (uint64, error) {
 }
 
 // getCoresInfo retruns infromation about physical cores
-func getCoresInfo(sysFs sysfs.SysFs, cpuDirs []string) ([]info.Core, error) {
+func getCoresInfo(sysFs sysfs.SysFs, cpuDirs []string, cpuinfo []byte) ([]info.Core, error) {
 	cores := make([]info.Core, 0, len(cpuDirs))
 	for _, cpuDir := range cpuDirs {
 		cpuID, err := getMatchedInt(cpuDirRegExp, cpuDir)
@@ -377,9 +381,15 @@ func getCoresInfo(sysFs sysfs.SysFs, cpuDirs []string) ([]info.Core, error) {
 		}
 
 		rawPhysicalID, err := sysFs.GetCoreID(cpuDir)
-		if err != nil {
+		if os.IsNotExist(err) {
+			rawPhysicalID, err = getCoreIDFromCpuinfo(cpuID, cpuinfo)
+			if err != nil {
+				return nil, err
+			}
+		} else if err != nil {
 			return nil, err
 		}
+
 		physicalID, err := strconv.Atoi(rawPhysicalID)
 		if err != nil {
 			return nil, err
@@ -416,6 +426,33 @@ func getCoresInfo(sysFs sysfs.SysFs, cpuDirs []string) ([]info.Core, error) {
 		desiredCore.SocketID = physicalPackageID
 	}
 	return cores, nil
+}
+
+func getCoreIDFromCpuinfo(cpuID int, cpuinfo []byte) (string, error) {
+	scanner := bufio.NewScanner(strings.NewReader(string(cpuinfo)))
+	processor := ""
+	for scanner.Scan() {
+		if matches := processorRegExp.FindStringSubmatch(scanner.Text()); len(matches) != 0 {
+			if len(matches) != 2 {
+				return "", fmt.Errorf("Failed to match processor regexp in cpuinfo: %q", scanner.Text())
+			}
+			processor = matches[1]
+		} else if matches := coreRegExp.FindStringSubmatch(scanner.Text()); len(matches) != 0 {
+			if len(matches) != 2 {
+				return "", fmt.Errorf("Failed to match core id regexp in cpuinfo: %q", scanner.Text())
+			}
+			if strconv.Itoa(cpuID) == processor {
+				coreID := matches[1]
+				return coreID, nil
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("Error in reading %s line by line, %s", cpuinfo, err)
+	}
+
+	return "", fmt.Errorf("Unable to read core id for processor %d from %s", cpuID, cpuinfo)
 }
 
 // GetCacheInfo return information about a cache accessible from the given cpu thread
