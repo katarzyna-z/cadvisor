@@ -31,6 +31,7 @@ import (
 var (
 	coreRegExp           = regexp.MustCompile(`core id\s*:\s*([0-9]+)$`)
 	processorRegExp      = regexp.MustCompile(`processor\s*:\s*([0-9]+)$`)
+	physicalIDRegExp     = regexp.MustCompile(`physical id\s*:\s*([0-9]+)$`)
 	schedulerRegExp      = regexp.MustCompile(`.*\[(.*)\].*`)
 	nodeDirRegExp        = regexp.MustCompile(`node/node(\d*)`)
 	cpuDirRegExp         = regexp.MustCompile(`/cpu(\d+)`)
@@ -382,7 +383,7 @@ func getCoresInfo(sysFs sysfs.SysFs, cpuDirs []string, cpuinfo []byte) ([]info.C
 
 		rawPhysicalID, err := sysFs.GetCoreID(cpuDir)
 		if os.IsNotExist(err) {
-			rawPhysicalID, err = getCoreIDFromCpuinfo(cpuID, cpuinfo)
+			rawPhysicalID, err = getInfoFromCpuinfo(cpuID, cpuinfo, coreRegExp)
 			if err != nil {
 				return nil, err
 			}
@@ -415,7 +416,12 @@ func getCoresInfo(sysFs sysfs.SysFs, cpuDirs []string, cpuinfo []byte) ([]info.C
 		}
 
 		rawPhysicalPackageID, err := sysFs.GetCPUPhysicalPackageID(cpuDir)
-		if err != nil {
+		if os.IsNotExist(err) {
+			rawPhysicalPackageID, err = getInfoFromCpuinfo(cpuID, cpuinfo, physicalIDRegExp)
+			if err != nil {
+				return nil, err
+			}
+		} else if err != nil {
 			return nil, err
 		}
 
@@ -428,7 +434,7 @@ func getCoresInfo(sysFs sysfs.SysFs, cpuDirs []string, cpuinfo []byte) ([]info.C
 	return cores, nil
 }
 
-func getCoreIDFromCpuinfo(cpuID int, cpuinfo []byte) (string, error) {
+func getInfoFromCpuinfo(cpuID int, cpuinfo []byte, cpuInfoRegexp *regexp.Regexp) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(string(cpuinfo)))
 	processor := ""
 	for scanner.Scan() {
@@ -437,7 +443,7 @@ func getCoreIDFromCpuinfo(cpuID int, cpuinfo []byte) (string, error) {
 				return "", fmt.Errorf("Failed to match processor regexp in cpuinfo: %q", scanner.Text())
 			}
 			processor = matches[1]
-		} else if matches := coreRegExp.FindStringSubmatch(scanner.Text()); len(matches) != 0 {
+		} else if matches := cpuInfoRegexp.FindStringSubmatch(scanner.Text()); len(matches) != 0 {
 			if len(matches) != 2 {
 				return "", fmt.Errorf("Failed to match core id regexp in cpuinfo: %q", scanner.Text())
 			}

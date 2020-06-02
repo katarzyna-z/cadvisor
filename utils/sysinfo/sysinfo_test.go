@@ -602,7 +602,7 @@ func TestGetNodesInfoWithoutNodes(t *testing.T) {
 	assert.JSONEq(t, expectedNodes, string(nodesJSON))
 }
 
-func TestGetNodesWithoutCoreID(t *testing.T) {
+func TestGetNodesWithoutCoreIDAndPhysicalID(t *testing.T) {
 	fakeSys := &fakesysfs.FakeSysFs{}
 	c := sysfs.CacheInfo{
 		Size:  32 * 1024,
@@ -658,7 +658,7 @@ func TestGetNodesWithoutCoreID(t *testing.T) {
 		"/fakeSysfs/devices/system/node/node0/cpu2": "1",
 		"/fakeSysfs/devices/system/node/node0/cpu3": "1",
 	}
-	fakeSys.SetPhysicalPackageIDs(physicalPackageIDs, nil)
+	fakeSys.SetPhysicalPackageIDs(physicalPackageIDs, os.ErrNotExist)
 
 	testCpuinfo := "./testdata/cpuinfo"
 	cpuinfo, err := ioutil.ReadFile(testCpuinfo)
@@ -732,7 +732,7 @@ func TestGetNodesWithoutCoreID(t *testing.T) {
 					2
 				 ],
 				 "caches":null,
-				 "socket_id":1
+				 "socket_id":0
 			  },
 			  {
 				 "core_id":3,
