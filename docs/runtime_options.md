@@ -139,6 +139,12 @@ cAdvisor stores the latest historical data in memory. How long of a history it s
 ```
 --perf_events_config="" Path to a JSON file containing configuration of perf events to measure. Empty value disables perf events measuring.
 ```
+## Referenced bytes
+This requires to change disable_metrics from the default value so that referenced_memory is not excluded
+```
+--referenced_read_interval duration Read interval for referenced bytes (container_referenced_bytes metric), number of seconds after which referenced bytes are read, if set to 0 referenced bytes are never read (default: 0s)
+--referenced_reset_interval duration Reset interval for referenced bytes (container_referenced_bytes metric), number of seconds after which referenced bytes are cleared, if set to 0 referenced bytes are never cleared (default: 0s)
+```
 
 Core perf events can be exposed on Prometheus endpoint per CPU or aggregated by event. It is controlled through `--disable_metrics` parameter with option `percpu`, e.g.:
 - `--disable_metrics="percpu"` - core perf events are aggregated
@@ -169,7 +175,7 @@ in mind that it is impossible to group more events that there are counters avail
 
 #### Getting config values
 Using perf tools:
-* Identify the event in `perf list` output. 
+* Identify the event in `perf list` output.
 * Execute command: `perf stat -I 5000 -vvv -e EVENT_NAME`
 * Find `perf_event_attr` section on `perf stat` output, copy config and type field to configuration file.
 
@@ -186,7 +192,7 @@ perf_event_attr:
   exclude_guest                    1
 ------------------------------------------------------------
 ```
-* Configuration file should look like: 
+* Configuration file should look like:
 ```json
 {
   "core": {
@@ -220,7 +226,7 @@ perf_event_attr:
 }
 ```
 
-Config values can be also obtain from: 
+Config values can be also obtain from:
 * [Intel® 64 and IA32 Architectures Performance Monitoring Events](https://software.intel.com/content/www/us/en/develop/download/intel-64-and-ia32-architectures-performance-monitoring-events.html)
 
 
@@ -228,7 +234,7 @@ Config values can be also obtain from:
 Uncore Event name should be in form `PMU_PREFIX/event_name` where **PMU_PREFIX** mean
 that statistics would be counted on all PMUs with that prefix in name.
 
-Let's explain this by example: 
+Let's explain this by example:
 
 ```json
 {
@@ -238,7 +244,7 @@ Let's explain this by example:
       ["uncore_imc_0/cas_count_write"],
       ["cas_count_all"]
     ],
-    "custom_events": [ 
+    "custom_events": [
       {
         "config": [
           "0x304"
@@ -378,11 +384,11 @@ See example configuration below:
 ```
 
 In the example above:
-* `instructions` will be measured as a non-grouped event and is specified using human friendly interface that can be 
-obtained by calling `perf list`. You can use any name that appears in the output of `perf list` command. This is 
+* `instructions` will be measured as a non-grouped event and is specified using human friendly interface that can be
+obtained by calling `perf list`. You can use any name that appears in the output of `perf list` command. This is
 interface that majority of users will rely on.
 * `instructions_retired` will be measured as non-grouped event and is specified using an advanced API that allows
-to specify any perf event available (some of them are not named and can't be specified with plain string). Event name 
+to specify any perf event available (some of them are not named and can't be specified with plain string). Event name
 should be a human readable string that will become a metric name.
 * `cas_count_read` will be measured as uncore non-grouped event on all Integrated Memory Controllers Performance Monitoring Units because of unset `type` field and
 `uncore_imc` prefix.

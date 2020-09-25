@@ -343,7 +343,7 @@ func (h *dockerContainerHandler) Cleanup() {
 	}
 	if h.includedMetrics.Has(container.ReferencedMemoryMetrics) {
 		h.libcontainerHandler.ReferencedMemoryStopper <- true
-		h.libcontainerHandler.ReferencedMemoryStopper <- true
+		h.libcontainerHandler.ReferencedResetStopper <- true
 	}
 }
 

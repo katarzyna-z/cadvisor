@@ -43,10 +43,8 @@ import (
 
 var (
 	whitelistedUlimits      = [...]string{"max_open_files"}
-	referencedResetInterval = flag.Duration("referenced_reset_interval", time.Duration(0),
-		"Reset interval for referenced bytes (container_referenced_bytes metric), number of seconds after which referenced bytes are cleared, if set to 0 referenced bytes are never cleared (default: 0s)")
-
-	referencedReadInterval = flag.Duration("referenced_read_interval", time.Duration(0), "Read interval for referenced bytes (container_referenced_bytes metric), number of seconds after which referenced bytes are read, if set to 0 referenced bytes are never read (default: 0s)")
+	referencedResetInterval = flag.Duration("referenced_reset_interval", time.Duration(0), "Reset interval for referenced bytes (container_referenced_bytes metric), number of seconds after which referenced bytes are cleared, if set to 0 referenced bytes are never cleared (default: 0s)")
+	referencedReadInterval  = flag.Duration("referenced_read_interval", time.Duration(0), "Read interval for referenced bytes (container_referenced_bytes metric), number of seconds after which referenced bytes are read, if set to 0 referenced bytes are never read (default: 0s)")
 
 	smapsFilePathPattern     = "/proc/%d/smaps"
 	smaps_rollupFilePattern  = "/proc/%d/smaps_rollup"
@@ -65,6 +63,7 @@ type Handler struct {
 	referencedMemory        uint64
 	referencedMemoryMutex   sync.Mutex
 	ReferencedMemoryStopper chan bool
+	ReferencedResetStopper  chan bool
 }
 
 func NewHandler(cgroupManager cgroups.Manager, rootFs string, pid int, includedMetrics container.MetricSet) *Handler {
@@ -74,7 +73,8 @@ func NewHandler(cgroupManager cgroups.Manager, rootFs string, pid int, includedM
 		pid:                     pid,
 		includedMetrics:         includedMetrics,
 		pidMetricsCache:         make(map[int]*info.CpuSchedstat),
-		ReferencedMemoryStopper: make(chan bool, 2),
+		ReferencedMemoryStopper: make(chan bool, 1),
+		ReferencedResetStopper:  make(chan bool, 1),
 	}
 }
 
@@ -763,12 +763,12 @@ func (h *Handler) ResetWss(containerName string) error {
 	if *referencedResetInterval == time.Duration(0) {
 		return err
 	}
-	tmp := *referencedResetInterval
-	time.Sleep(time.Duration(rand.Intn(int(tmp.Seconds()))))
+	resetInterval := *referencedResetInterval
+	time.Sleep(time.Duration(rand.Intn(int(resetInterval.Seconds()))))
 
 	for {
 		select {
-		case <-h.ReferencedMemoryStopper:
+		case <-h.ReferencedResetStopper:
 			klog.V(5).Infof("Finished reseting wss for %s", containerName)
 			return err
 
@@ -779,7 +779,7 @@ func (h *Handler) ResetWss(containerName string) error {
 
 			}
 			if len(pids) == 0 && err == nil {
-				klog.V(5).Infof("Tried to reset wss for an empty container for %s", containerName)
+				klog.V(5).Infof("Tried to reset wss for container without PIDs %s", containerName)
 
 			}
 			start := time.Now()
@@ -804,8 +804,8 @@ func (h *Handler) ReadSmaps(containerName string) error {
 	if *referencedReadInterval == 0 {
 		return err
 	}
-	tmp := *referencedReadInterval
-	time.Sleep(time.Duration(rand.Intn(int(tmp.Seconds()))))
+	readInterval := *referencedReadInterval
+	time.Sleep(time.Duration(rand.Intn(int(readInterval.Seconds()))))
 	for {
 		select {
 		case <-h.ReferencedMemoryStopper:
@@ -819,8 +819,7 @@ func (h *Handler) ReadSmaps(containerName string) error {
 
 			}
 			if len(pids) == 0 && err == nil {
-				klog.V(5).Infof("Tried to read an empty container, canceling WSS collection for %s", containerName)
-
+				klog.V(5).Infof("Tried to read a container with no PIDs %s", containerName)
 			}
 			start := time.Now()
 			h.referencedMemoryMutex.Lock()
