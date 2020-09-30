@@ -375,9 +375,8 @@ func getReferencedKBytes(pids []int) (uint64, error) {
 	foundMatch := false
 	smapsFilePath := ""
 	for _, pid := range pids {
-		smapsRollupFilePath := fmt.Sprintf(smaps_rollupFilePattern, pid)
-		if _, err := os.Stat(smapsRollupFilePath); err == nil {
-			smapsFilePath = smapsRollupFilePath
+		smapsFilePath = fmt.Sprintf(smaps_rollupFilePattern, pid)
+		if _, err := os.Stat(smapsFilePath); err == nil {
 			klog.V(6).Infof("Using smaps_rollup for pid %d instead of smaps", pid)
 		} else {
 			smapsFilePath = fmt.Sprintf(smapsFilePathPattern, pid)

@@ -139,12 +139,14 @@ cAdvisor stores the latest historical data in memory. How long of a history it s
 ```
 --perf_events_config="" Path to a JSON file containing configuration of perf events to measure. Empty value disables perf events measuring.
 ```
+
 ## Referenced bytes
 This requires to change disable_metrics from the default value so that referenced_memory is not excluded
 ```
 --referenced_read_interval duration Read interval for referenced bytes (container_referenced_bytes metric), number of seconds after which referenced bytes are read, if set to 0 referenced bytes are never read (default: 0s)
 --referenced_reset_interval duration Reset interval for referenced bytes (container_referenced_bytes metric), number of seconds after which referenced bytes are cleared, if set to 0 referenced bytes are never cleared (default: 0s)
 ```
+*NOTE*: To avoid CPU starvation, reads are distributed over time. Keeping frequency, each reading loop gets a random offset from range <0, `referenced_read_interval`> before starting.
 
 Core perf events can be exposed on Prometheus endpoint per CPU or aggregated by event. It is controlled through `--disable_metrics` parameter with option `percpu`, e.g.:
 - `--disable_metrics="percpu"` - core perf events are aggregated
