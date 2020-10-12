@@ -595,7 +595,11 @@ func (cd *containerData) updateLoad(newLoad uint64) {
 }
 
 func (cd *containerData) updateStats() error {
+	start := time.Now()
 	stats, statsErr := cd.handler.GetStats()
+	elapsed := time.Since(start)
+	fmt.Printf("%s; %d; %d \n", elapsed, elapsed.Milliseconds(), elapsed.Microseconds())
+
 	if statsErr != nil {
 		// Ignore errors if the container is dead.
 		if !cd.handler.Exists() {
