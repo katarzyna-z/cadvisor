@@ -799,7 +799,7 @@ func (h *Handler) ResetWss(containerName string) error {
 // ReadSmaps to be run as gorutine for non blocking referenced bytes read
 func (h *Handler) ReadSmaps(containerName string) error {
 	var err error = nil
-	klog.Infof("Starting WSS collection for %s", containerName)
+	klog.V(5).Infof("Starting WSS collection for %s", containerName)
 	if *referencedReadInterval == 0 {
 		return err
 	}
